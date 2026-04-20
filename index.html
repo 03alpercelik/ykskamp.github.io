@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>YKS Kamp Takip Pro - Dinamik Versiyon</title>
+    <title>YKS Kamp Takip Pro - Analiz Versiyonu</title>
     <style>
         :root {
             --bg-color: #f8f9fa;
@@ -18,6 +18,8 @@
             --highlight: #fdcb6e;
             --accent: #00b894;
             --edit-color: #0984e3;
+            --danger-color: #ff7675;
+            --stat-bg: #e0f2f1;
         }
 
         [data-theme="dark"] {
@@ -32,122 +34,99 @@
             --highlight: #eab308;
             --accent: #10b981;
             --edit-color: #3b82f6;
+            --danger-color: #ef4444;
+            --stat-bg: #064e3b;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background 0.3s ease, color 0.3s ease;
-        }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; }
 
-        .sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: var(--bg-color);
-            padding: 15px 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(8px);
-        }
+        .sticky-header { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 15px 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); backdrop-filter: blur(8px); border-bottom: 1px solid var(--table-border); }
 
-        .controls {
-            max-width: 1300px;
-            margin: 0 auto 15px auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+        .controls { max-width: 1300px; margin: 0 auto 15px auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .controls-left, .controls-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-        .controls-left, .controls-right {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
         .btn:active { transform: scale(0.95); }
         .btn-theme { background: #636e72; color: white; }
-        .btn-reset { background: #ff7675; color: white; }
+        .btn-reset { background: var(--danger-color); color: white; }
         .btn-edit { background: var(--edit-color); color: white; }
+        .btn-export { background: #00cec9; color: white; }
         .btn-edit.active { background: var(--accent); animation: pulse 2s infinite; }
+        
+        .row-controls { display: flex; gap: 10px; width: 100%; max-width: 1300px; margin-top: 15px; }
+        .btn-add-row { background: var(--accent); color: white; flex: 1; justify-content: center; padding: 12px; font-size: 14px; }
+        .btn-del-row { background: var(--danger-color); color: white; flex: 1; justify-content: center; padding: 12px; font-size: 14px; }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(0, 184, 148, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0); }
-        }
+        .date-picker-container { display: flex; align-items: center; gap: 8px; background: var(--card-bg); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--table-border); font-size: 13px; font-weight: 600; }
+        .date-picker-container input { border: none; background: transparent; color: var(--text-color); font-family: inherit; font-weight: bold; outline: none; cursor: pointer; }
+        
+        .connection-status { font-size: 11px; font-weight: bold; padding: 6px 10px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
+        .status-online { background: rgba(0, 184, 148, 0.15); color: var(--accent); }
+        .status-offline { background: rgba(255, 118, 117, 0.15); color: var(--danger-color); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 184, 148, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0); } }
 
         .progress-wrapper { max-width: 1300px; margin: 0 auto; }
         .progress-header { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-        .progress-bar-container { width: 100%; height: 10px; background-color: var(--table-border); border-radius: 20px; overflow: hidden; }
+        .progress-bar-container { width: 100%; height: 10px; background-color: var(--table-border); border-radius: 20px; overflow: hidden; margin-bottom: 10px; }
         .progress-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-        .content { padding: 30px 20px; display: flex; justify-content: center; }
+        /* YENİ: İstatistik Paneli */
+        .stats-container { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; font-weight: 600; }
+        .stat-badge { background: var(--card-bg); border: 1px solid var(--table-border); padding: 5px 10px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
+        .stat-badge span { color: var(--accent); }
+        .stat-hours { background: var(--stat-bg); border-color: transparent; }
+
+        .content { padding: 25px 20px; display: flex; flex-direction: column; align-items: center; }
         .table-container { width: 100%; max-width: 1300px; background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow-x: auto; border: 1px solid var(--table-border); }
         
         table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1100px; color: var(--text-color); }
-        th, td { border-bottom: 1px solid var(--table-border); padding: 14px; text-align: left; color: var(--text-color); }
+        th, td { border-bottom: 1px solid var(--table-border); padding: 12px; text-align: left; color: var(--text-color); vertical-align: middle; }
         thead th { background: var(--header-bg); color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
         
         .time-tag { display: block; font-size: 10px; margin-top: 5px; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; width: fit-content; }
         tr:nth-child(even) { background-color: var(--row-even); }
         tr:nth-child(odd) { background-color: var(--row-odd); }
         
+        /* YENİ: Günü Tamamla Butonu */
+        .date-wrapper { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .btn-complete-day { background: transparent; border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 12px; padding: 3px 6px; transition: all 0.2s; color: var(--text-color); opacity: 0.5; }
+        .btn-complete-day:hover { background: var(--accent); color: white; opacity: 1; border-color: var(--accent); }
+
         .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; }
         .completed-text { text-decoration: line-through; opacity: 0.7; }
-        .note-input { width: 100%; padding: 8px; border: 1px solid var(--table-border); border-radius: 6px; background: transparent; color: var(--text-color); font-size: 12px; }
+        
+        .note-input { width: 100%; min-width: 160px; padding: 8px; border: 1px solid var(--table-border); border-radius: 6px; background: transparent; color: var(--text-color); font-size: 12px; font-family: inherit; resize: vertical; min-height: 40px; box-sizing: border-box; transition: border-color 0.2s; }
+        .note-input:focus { outline: none; border-color: var(--accent); }
 
         /* VURGULAMA BÖLÜMÜ */
         .today-highlight, .today-highlight td { background-color: var(--highlight) !important; color: #000000 !important; font-weight: 700 !important; }
         .today-highlight .task-label, .today-highlight .task-text, .today-highlight .completed-text { color: #000000 !important; }
         .today-highlight .time-tag { background: rgba(0,0,0,0.15) !important; color: #111111 !important; }
-        .today-highlight .note-input { border-color: #666666 !important; color: #000000 !important; background: rgba(255,255,255,0.4) !important; }
-        .today-highlight .note-input::placeholder { color: #333333 !important; }
+        .today-highlight .note-input { border-color: #555555 !important; color: #000000 !important; background: rgba(255,255,255,0.4) !important; }
+        .today-highlight .note-input::placeholder { color: #444444 !important; }
         .today-highlight .hour-badge { background: #000000 !important; color: var(--highlight) !important; }
+        .today-highlight .btn-complete-day { border-color: #000; color: #000; opacity: 0.8; }
 
-        .hour-badge { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; display: inline-block; min-width: 50px; text-align: center; }
+        .hour-badge { background: var(--accent); color: white; padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; display: inline-block; min-width: 50px; text-align: center; }
 
-        /* DÜZENLEME MODU (EDIT MODE) STİLLERİ */
+        /* DÜZENLEME MODU */
         .editable-text { transition: all 0.2s; padding: 2px 4px; border-radius: 4px; border: 1px solid transparent; }
-        body.edit-mode .editable-text { 
-            border: 1px dashed var(--accent); 
-            background: rgba(0, 184, 148, 0.1); 
-            cursor: text; 
-        }
-        body.edit-mode .editable-text:focus {
-            outline: none;
-            background: rgba(0, 184, 148, 0.2);
-            border-style: solid;
-        }
-        body.edit-mode .task-checkbox {
-            pointer-events: none; /* Düzenlerken yanlışlıkla tiklenmesini önler */
-            opacity: 0.5;
-        }
+        body.edit-mode .editable-text { border: 1px dashed var(--accent); background: rgba(0, 184, 148, 0.1); cursor: text; }
+        body.edit-mode .editable-text:focus { outline: none; background: rgba(0, 184, 148, 0.2); border-style: solid; }
+        body.edit-mode .task-checkbox { pointer-events: none; opacity: 0.5; }
 
         /* MOBİL */
         @media (max-width: 768px) {
             table { min-width: auto; font-size: 12px; }
             th, td { padding: 10px 6px; }
             .time-tag { font-size: 9px; padding: 1px 4px; }
-            .hour-badge { font-size: 11px; padding: 3px 8px; }
+            .hour-badge { font-size: 10px; padding: 3px 6px; }
             thead th:nth-child(n+2) { width: 18%; }
-            .note-input { font-size: 11px; padding: 6px; }
+            .note-input { font-size: 11px; padding: 6px; min-width: 100px; min-height: 35px; }
             .controls { justify-content: center; }
+            .date-picker-container { width: 100%; justify-content: center; }
+            .stats-container { justify-content: center; }
         }
     </style>
 </head>
@@ -157,10 +136,13 @@
     <div class="controls">
         <div class="controls-left">
             <button class="btn btn-theme" id="theme-toggle">🌙 Mod</button>
-            <button class="btn btn-edit" id="edit-btn">✏️ Programı Düzenle</button>
+            <button class="btn btn-edit" id="edit-btn">✏️ Düzenle</button>
+            <div class="date-picker-container">🗓️ <input type="date" id="start-date-picker"></div>
         </div>
         <div class="controls-right">
-            <button class="btn btn-reset" id="reset-btn">🗑️ Tümünü Sıfırla</button>
+            <button class="btn btn-export" id="export-btn">📥 Yedek İndir</button>
+            <span id="connection-status" class="connection-status status-online">🟢 Bağlanıyor...</span>
+            <button class="btn btn-reset" id="reset-btn">🗑️ Sıfırla</button>
         </div>
     </div>
     <div class="progress-wrapper">
@@ -171,6 +153,8 @@
         <div class="progress-bar-container">
             <div class="progress-bar-fill" id="progress-fill"></div>
         </div>
+        <div class="stats-container" id="stats-panel">
+            </div>
     </div>
 </div>
 
@@ -179,53 +163,30 @@
         <table id="schedule-table">
             <thead>
                 <tr>
-                    <th><span class="editable-text" data-edit-id="th-date">Tarih</span></th>
-                    <th><span class="editable-text" data-edit-id="th-subj-1">Matematik</span> <span class="time-tag editable-text" data-edit-id="th-time-1">08:30 - 10:30</span></th>
-                    <th><span class="editable-text" data-edit-id="th-subj-2">Deneme</span> <span class="time-tag editable-text" data-edit-id="th-time-2">10:45 - 12:45</span></th>
-                    <th><span class="editable-text" data-edit-id="th-subj-3">Fizik</span> <span class="time-tag editable-text" data-edit-id="th-time-3">14:15 - 16:15</span></th>
-                    <th><span class="editable-text" data-edit-id="th-subj-4">Kimya</span> <span class="time-tag editable-text" data-edit-id="th-time-4">16:30 - 18:30</span></th>
-                    <th><span class="editable-text" data-edit-id="th-subj-5">Biyoloji</span> <span class="time-tag editable-text" data-edit-id="th-time-5">19:00 - 21:00</span></th>
+                    <th>Tarih</th>
+                    <th><span class="editable-text" data-edit-id="th-subj-1" id="th-subj-1-text">Matematik</span> <span class="time-tag editable-text" data-edit-id="th-time-1">08:30 - 10:30</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-2" id="th-subj-2-text">Deneme</span> <span class="time-tag editable-text" data-edit-id="th-time-2">10:45 - 12:45</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-3" id="th-subj-3-text">Fizik</span> <span class="time-tag editable-text" data-edit-id="th-time-3">14:15 - 16:15</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-4" id="th-subj-4-text">Kimya</span> <span class="time-tag editable-text" data-edit-id="th-time-4">16:30 - 18:30</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-5" id="th-subj-5-text">Biyoloji</span> <span class="time-tag editable-text" data-edit-id="th-time-5">19:00 - 21:00</span></th>
                     <th>Günün Notu</th>
                     <th>Toplam Saat</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr><td>17 Nisan Cuma</td><td>İntegral (3. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Madde ve Özellikleri (2. Gün)</td><td>TYT Kimya (1. Gün)</td><td>Dolaşım ve Bağışıklık (3. Gün)</td></tr>
-                <tr><td>18 Nisan Cumartesi</td><td>İntegral (4. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Isı, Sıcaklık ve Genleşme (1. Gün)</td><td>TYT Kimya (2. Gün)</td><td>Sindirim Sistemi (1. Gün)</td></tr>
-                <tr><td>19 Nisan Pazar</td><td>İntegral (5. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Isı, Sıcaklık ve Genleşme (2. Gün)</td><td>TYT Kimya (3. Gün)</td><td>Sindirim Sistemi (2. Gün)</td></tr>
-                <tr><td>20 Nisan Pazartesi</td><td>Trigonometri (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>İş, Güç ve Enerji (1. Gün)</td><td>TYT Kimya (4. Gün)</td><td>Solunum Sistemi (1. Gün)</td></tr>
-                <tr><td>21 Nisan Salı</td><td>Trigonometri (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>İş, Güç ve Enerji (2. Gün)</td><td>TYT Kimya (5. Gün)</td><td>Solunum Sistemi (2. Gün)</td></tr>
-                <tr><td>22 Nisan Çarşamba</td><td>Trigonometri (3. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Bir Boyutta Sabit İvmeli Hareket (1. Gün)</td><td>Gazlar (2. Gün)</td><td>Boşaltım Sistemi (1. Gün)</td></tr>
-                <tr><td>23 Nisan Perşembe</td><td>Trigonometri (4. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Bir Boyutta Sabit İvmeli Hareket (2. Gün)</td><td>Gazlar (3. Gün)</td><td>Boşaltım Sistemi (2. Gün)</td></tr>
-                <tr><td>24 Nisan Cuma</td><td>Trigonometri (5. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Bir Boyutta Sabit İvmeli Hareket (3. Gün)</td><td>Çözeltiler (1. Gün)</td><td>Üreme ve Gelişim (1. Gün)</td></tr>
-                <tr><td>25 Nisan Cumartesi</td><td>Trigonometri (6. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>İtme ve Momentum (1. Gün)</td><td>Çözeltiler (2. Gün)</td><td>Üreme ve Gelişim (2. Gün)</td></tr>
-                <tr><td>26 Nisan Pazar</td><td>Trigonometri (7. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>İtme ve Momentum (2. Gün)</td><td>Çözeltiler (3. Gün)</td><td>Komünite ve Popülasyon (1. Gün)</td></tr>
-                <tr><td>27 Nisan Pazartesi</td><td>Trigonometri (8. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>İtme ve Momentum (3. Gün)</td><td>Enerji (Entalpi) (1. Gün)</td><td>Komünite ve Popülasyon (2. Gün)</td></tr>
-                <tr><td>28 Nisan Salı</td><td>Trigonometri (9. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Çembersel Hareket (1. Gün)</td><td>Enerji (Entalpi) (2. Gün)</td><td>Komünite ve Popülasyon (3. Gün)</td></tr>
-                <tr><td>29 Nisan Çarşamba</td><td>Trigonometri (10. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Çembersel Hareket (2. Gün)</td><td>Kimyasal Hız (1. Gün)</td><td>Genden Proteine (1. Gün)</td></tr>
-                <tr><td>30 Nisan Perşembe</td><td>2. Der. Denk. (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Çembersel Hareket (3. Gün)</td><td>Kimyasal Hız (2. Gün)</td><td>Genden Proteine (2. Gün)</td></tr>
-                <tr><td>1 Mayıs Cuma</td><td>2. Der. Denk. (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Kütle Çekimi ve Kepler</td><td>Kimyasal Denge (1. Gün)</td><td>Genden Proteine (3. Gün)</td></tr>
-                <tr><td>2 Mayıs Cumartesi</td><td>2. Der. Denk. (3. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Dalga Mekaniği (1. Gün)</td><td>Kimyasal Denge (2. Gün)</td><td>Genden Proteine (4. Gün)</td></tr>
-                <tr><td>3 Mayıs Pazar</td><td>2. Der. Denk. (4. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Dalga Mekaniği (2. Gün)</td><td>Kimyasal Denge (3. Gün)</td><td>Canlılarda Enerji Dön. (1. Gün)</td></tr>
-                <tr><td>4 Mayıs Pazartesi</td><td>Parabol (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Dalga Mekaniği (3. Gün)</td><td>Asit-Baz Dengesi (1. Gün)</td><td>Canlılarda Enerji Dön. (2. Gün)</td></tr>
-                <tr><td>5 Mayıs Salı</td><td>Parabol (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Atom Fiziği/Radyoakt. (1. Gün)</td><td>Asit-Baz Dengesi (2. Gün)</td><td>Canlılarda Enerji Dön. (3. Gün)</td></tr>
-                <tr><td>6 Mayıs Çarşamba</td><td>Logaritma (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Atom Fiziği/Radyoakt. (2. Gün)</td><td>Asit-Baz Dengesi (3. Gün)</td><td>Canlılarda Enerji Dön. (4. Gün)</td></tr>
-                <tr><td>7 Mayıs Perşembe</td><td>Logaritma (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Atom Fiziği/Radyoakt. (3. Gün)</td><td>Çözünürlük Dengesi (1. Gün)</td><td>Canlılarda Enerji Dön. (5. Gün)</td></tr>
-                <tr><td>8 Mayıs Cuma</td><td>Diziler (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Modern Fizik (1. Gün)</td><td>Çözünürlük Dengesi (2. Gün)</td><td>Bitki Biyolojisi (1. Gün)</td></tr>
-                <tr><td>9 Mayıs Cumartesi</td><td>Diziler (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Modern Fizik (2. Gün)</td><td>Kimya ve Elektrik (1. Gün)</td><td>Bitki Biyolojisi (2. Gün)</td></tr>
-                <tr><td>10 Mayıs Pazar</td><td>PKOB (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Modern Fizik (3. Gün)</td><td>Kimya ve Elektrik (2. Gün)</td><td>Bitki Biyolojisi (3. Gün)</td></tr>
-                <tr><td>11 Mayıs Pazartesi</td><td>PKOB (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Teknolojideki Uyg. (1. Gün)</td><td>Kimya ve Elektrik (3. Gün)</td><td>Bitki Biyolojisi (4. Gün)</td></tr>
-                <tr><td>12 Mayıs Salı</td><td>PKOB (3. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Teknolojideki Uyg. (2. Gün)</td><td>Genel Tekrar</td><td>Bitki Biyolojisi (5. Gün)</td></tr>
-                <tr><td>13 Mayıs Çarşamba</td><td>PKOB (4. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Fizik Genel Tekrar</td><td>Genel Tekrar</td><td>Biyoloji Genel Tekrar (1. Gün)</td></tr>
-                <tr><td>14 Mayıs Perşembe</td><td>PKOB (5. Gün)</td><td>Mat. Deneme + AYT Genel Tekrar</td><td>Fizik Mini Branş Denemesi</td><td>Genel Tekrar</td><td>Biyoloji Genel Tekrar (2. Gün)</td></tr>
-            </tbody>
+            <tbody id="table-body">
+                </tbody>
         </table>
+    </div>
+    
+    <div class="row-controls">
+        <button class="btn btn-add-row" id="add-row-btn">➕ Yeni Gün Ekle</button>
+        <button class="btn btn-del-row" id="del-row-btn">➖ Son Günü Sil</button>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCtlXFnB8OTQ-P_QKH2fAexX8UlLTRpXcg",
@@ -240,30 +201,68 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
+    
     const tasksRef = ref(database, 'kamp/tasks/');
     const notesRef = ref(database, 'kamp/notes/');
-    const customTextRef = ref(database, 'kamp/customTexts/'); // YENİ: Özel metinler için
+    const customTextRef = ref(database, 'kamp/customTexts/'); 
+    const settingsRef = ref(database, 'kamp/settings/');
+    const connectedRef = ref(database, '.info/connected');
+
+    const baseSchedule = [
+        ["İntegral (3. Gün)", "12 Prob. + TYT Mat. Türkçe", "Madde ve Özellikleri (2. Gün)", "TYT Kimya (1. Gün)", "Dolaşım ve Bağışıklık (3. Gün)"],
+        ["İntegral (4. Gün)", "Mat. Deneme + TYT Sosyal", "Isı, Sıcaklık ve Genleşme (1. Gün)", "TYT Kimya (2. Gün)", "Sindirim Sistemi (1. Gün)"],
+        ["İntegral (5. Gün)", "12 Prob. + TYT Mat. Türkçe", "Isı, Sıcaklık ve Genleşme (2. Gün)", "TYT Kimya (3. Gün)", "Sindirim Sistemi (2. Gün)"],
+        ["Trigonometri (1. Gün)", "Mat. Deneme + TYT Sosyal", "İş, Güç ve Enerji (1. Gün)", "TYT Kimya (4. Gün)", "Solunum Sistemi (1. Gün)"],
+        ["Trigonometri (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "İş, Güç ve Enerji (2. Gün)", "TYT Kimya (5. Gün)", "Solunum Sistemi (2. Gün)"],
+        ["Trigonometri (3. Gün)", "Mat. Deneme + TYT Sosyal", "Bir Boyutta Sabit İvmeli Hareket (1. Gün)", "Gazlar (2. Gün)", "Boşaltım Sistemi (1. Gün)"],
+        ["Trigonometri (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Bir Boyutta Sabit İvmeli Hareket (2. Gün)", "Gazlar (3. Gün)", "Boşaltım Sistemi (2. Gün)"],
+        ["Trigonometri (5. Gün)", "Mat. Deneme + TYT Sosyal", "Bir Boyutta Sabit İvmeli Hareket (3. Gün)", "Çözeltiler (1. Gün)", "Üreme ve Gelişim (1. Gün)"],
+        ["Trigonometri (6. Gün)", "12 Prob. + TYT Mat. Türkçe", "İtme ve Momentum (1. Gün)", "Çözeltiler (2. Gün)", "Üreme ve Gelişim (2. Gün)"],
+        ["Trigonometri (7. Gün)", "Mat. Deneme + TYT Sosyal", "İtme ve Momentum (2. Gün)", "Çözeltiler (3. Gün)", "Komünite ve Popülasyon (1. Gün)"],
+        ["Trigonometri (8. Gün)", "12 Prob. + TYT Mat. Türkçe", "İtme ve Momentum (3. Gün)", "Enerji (Entalpi) (1. Gün)", "Komünite ve Popülasyon (2. Gün)"],
+        ["Trigonometri (9. Gün)", "Mat. Deneme + TYT Sosyal", "Çembersel Hareket (1. Gün)", "Enerji (Entalpi) (2. Gün)", "Komünite ve Popülasyon (3. Gün)"],
+        ["Trigonometri (10. Gün)", "12 Prob. + TYT Mat. Türkçe", "Çembersel Hareket (2. Gün)", "Kimyasal Hız (1. Gün)", "Genden Proteine (1. Gün)"],
+        ["2. Der. Denk. (1. Gün)", "Mat. Deneme + TYT Sosyal", "Çembersel Hareket (3. Gün)", "Kimyasal Hız (2. Gün)", "Genden Proteine (2. Gün)"],
+        ["2. Der. Denk. (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Kütle Çekimi ve Kepler", "Kimyasal Denge (1. Gün)", "Genden Proteine (3. Gün)"],
+        ["2. Der. Denk. (3. Gün)", "Mat. Deneme + TYT Sosyal", "Dalga Mekaniği (1. Gün)", "Kimyasal Denge (2. Gün)", "Genden Proteine (4. Gün)"],
+        ["2. Der. Denk. (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Dalga Mekaniği (2. Gün)", "Kimyasal Denge (3. Gün)", "Canlılarda Enerji Dön. (1. Gün)"],
+        ["Parabol (1. Gün)", "Mat. Deneme + TYT Sosyal", "Dalga Mekaniği (3. Gün)", "Asit-Baz Dengesi (1. Gün)", "Canlılarda Enerji Dön. (2. Gün)"],
+        ["Parabol (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Atom Fiziği/Radyoakt. (1. Gün)", "Asit-Baz Dengesi (2. Gün)", "Canlılarda Enerji Dön. (3. Gün)"],
+        ["Logaritma (1. Gün)", "Mat. Deneme + TYT Sosyal", "Atom Fiziği/Radyoakt. (2. Gün)", "Asit-Baz Dengesi (3. Gün)", "Canlılarda Enerji Dön. (4. Gün)"],
+        ["Logaritma (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Atom Fiziği/Radyoakt. (3. Gün)", "Çözünürlük Dengesi (1. Gün)", "Canlılarda Enerji Dön. (5. Gün)"],
+        ["Diziler (1. Gün)", "Mat. Deneme + TYT Sosyal", "Modern Fizik (1. Gün)", "Çözünürlük Dengesi (2. Gün)", "Bitki Biyolojisi (1. Gün)"],
+        ["Diziler (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Modern Fizik (2. Gün)", "Kimya ve Elektrik (1. Gün)", "Bitki Biyolojisi (2. Gün)"],
+        ["PKOB (1. Gün)", "Mat. Deneme + TYT Sosyal", "Modern Fizik (3. Gün)", "Kimya ve Elektrik (2. Gün)", "Bitki Biyolojisi (3. Gün)"],
+        ["PKOB (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Teknolojideki Uyg. (1. Gün)", "Kimya ve Elektrik (3. Gün)", "Bitki Biyolojisi (4. Gün)"],
+        ["PKOB (3. Gün)", "Mat. Deneme + TYT Sosyal", "Teknolojideki Uyg. (2. Gün)", "Genel Tekrar", "Bitki Biyolojisi (5. Gün)"],
+        ["PKOB (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Fizik Genel Tekrar", "Genel Tekrar", "Biyoloji Genel Tekrar (1. Gün)"],
+        ["PKOB (5. Gün)", "Mat. Deneme + AYT Genel Tekrar", "Fizik Mini Branş Denemesi", "Genel Tekrar", "Biyoloji Genel Tekrar (2. Gün)"]
+    ];
 
     document.addEventListener("DOMContentLoaded", () => {
-        const table = document.getElementById("schedule-table");
-        const rows = table.querySelectorAll("tbody tr");
+        const tbody = document.getElementById("table-body");
         const progressFill = document.getElementById("progress-fill");
         const progressText = document.getElementById("progress-text");
+        const statsPanel = document.getElementById("stats-panel");
         const themeToggle = document.getElementById("theme-toggle");
         const resetBtn = document.getElementById("reset-btn");
         const editBtn = document.getElementById("edit-btn");
+        const exportBtn = document.getElementById("export-btn");
+        const addRowBtn = document.getElementById("add-row-btn");
+        const delRowBtn = document.getElementById("del-row-btn");
+        const startDatePicker = document.getElementById("start-date-picker");
+        const connectionStatus = document.getElementById("connection-status");
 
-        let totalTasks = 0;
-        let dayCounter = 1;
-
-        // Bugün tarihi
         const today = new Date();
         const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const todayString = `${today.getDate()} ${months[today.getMonth()]} ${days[today.getDay()]}`;
-        document.getElementById("current-date-info").innerText = `Bugün: ${todayString}`;
+        let currentStartDate = "2024-04-17";
 
-        // Debounce fonksiyonu (performans için)
+        let cacheTasks = {};
+        let cacheNotes = {};
+        let cacheCustomTexts = {};
+
         const debounce = (func, delay) => {
             let timeout;
             return (...args) => {
@@ -272,149 +271,314 @@
             };
         };
 
-        // Tabloyu İşle ve ID'leri Ekle
-        rows.forEach((row, rowIndex) => {
-            const cells = row.cells;
-            
-            // Tarih Sütununu düzenlenebilir yap
-            const dateText = cells[0].innerText.trim();
-            cells[0].innerHTML = `<span class="editable-text" data-edit-id="date-${rowIndex}">${dateText}</span>`;
+        const getHoursFromText = (text) => {
+            if (!text) return 0;
+            const timeMatch = text.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+                const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+                const endMins = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
+                let diff = endMins - startMins;
+                if (diff < 0) diff += 24 * 60; 
+                return diff / 60;
+            }
+            const numMatch = text.match(/[\d\.]+/);
+            if (numMatch) {
+                const val = parseFloat(numMatch[0]);
+                if (!isNaN(val)) return val;
+            }
+            return 2; 
+        };
 
-            if (dateText === todayString) {
-                row.classList.add("today-highlight");
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const updateStats = () => {
+            const rows = document.querySelectorAll("#table-body tr");
+            let completedHours = 0, remainingHours = 0;
+            let subjStats = [0, 0, 0, 0, 0];
+            let subjTotals = [0, 0, 0, 0, 0];
+
+            rows.forEach((row, rowIndex) => {
+                let rowTotalHours = 0;
+                const rowTasks = row.querySelectorAll(".task-checkbox");
+                
+                rowTasks.forEach((box, taskIndex) => {
+                    const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${taskIndex + 1}"]`);
+                    const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
+                    const hrs = getHoursFromText(timeStr);
+                    
+                    subjTotals[taskIndex]++;
+                    
+                    if (box.checked) {
+                        rowTotalHours += hrs;
+                        completedHours += hrs;
+                        subjStats[taskIndex]++;
+                    } else {
+                        remainingHours += hrs;
+                    }
+                });
+                
+                const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
+                if (hourDisplay) hourDisplay.innerText = `${Number.isInteger(rowTotalHours) ? rowTotalHours : rowTotalHours.toFixed(1)} Saat`;
+            });
+
+            // Ders isimlerini başlıklardan al
+            const subjNames = [];
+            for(let i=1; i<=5; i++) {
+                const el = document.getElementById(`th-subj-${i}-text`);
+                subjNames.push(el ? el.innerText.split(' ')[0] : `Ders ${i}`);
             }
 
-            // 5 ders sütununu checkbox'a ve düzenlenebilir metne çevir
+            let statsHtml = `<div class="stat-badge stat-hours">⏱️ Çalışılan: <span>${completedHours.toFixed(1)}s</span> | Kalan: <span>${remainingHours.toFixed(1)}s</span></div>`;
+            
+            for(let i=0; i<5; i++) {
+                const pct = subjTotals[i] === 0 ? 0 : Math.round((subjStats[i] / subjTotals[i]) * 100);
+                statsHtml += `<div class="stat-badge">${subjNames[i]}: <span>%${pct}</span></div>`;
+            }
+            
+            statsPanel.innerHTML = statsHtml;
+        };
+
+        const updateDatesInTable = () => {
+            const startDateObj = new Date(currentStartDate);
+            const dateCells = document.querySelectorAll(".date-cell");
+            
+            dateCells.forEach((cell, index) => {
+                const rowDate = new Date(startDateObj);
+                rowDate.setDate(rowDate.getDate() + index);
+                const dateText = `${rowDate.getDate()} ${months[rowDate.getMonth()]} ${days[rowDate.getDay()]}`;
+                cell.innerText = dateText;
+                
+                const tr = cell.closest('tr');
+                if (dateText === todayString) {
+                    tr.classList.add("today-highlight");
+                    if (index === 0 || !tr.hasAttribute("data-scrolled")) {
+                        tr.setAttribute("data-scrolled", "true");
+                        setTimeout(() => tr.scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
+                    }
+                } else {
+                    tr.classList.remove("today-highlight");
+                }
+            });
+            document.getElementById("current-date-info").innerText = `Bugün: ${todayString}`;
+        };
+
+        const addRowToDOM = (rowIndex) => {
+            const tr = document.createElement("tr");
+            let html = `
+                <td>
+                    <div class="date-wrapper">
+                        <span class="date-cell" style="font-weight: 600;"></span>
+                        <button class="btn-complete-day" data-row="${rowIndex}" title="Tüm Günü Tamamla">✅</button>
+                    </div>
+                </td>`;
+            
+            const rowData = baseSchedule[rowIndex] || ["Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders"];
+
             for (let i = 1; i < 6; i++) {
-                const cell = cells[i];
-                const text = cell.innerText.trim();
-                if (text) {
-                    const taskId = `task-${totalTasks++}`;
-                    const editId = `task-text-${rowIndex}-${i}`;
-                    cell.innerHTML = `
+                const taskId = `task-${rowIndex * 5 + (i - 1)}`;
+                const editId = `task-text-${rowIndex}-${i}`;
+                html += `
+                    <td>
                         <label class="task-label">
                             <input type="checkbox" id="${taskId}" class="task-checkbox">
-                            <span class="task-text editable-text" data-edit-id="${editId}">${text}</span>
+                            <span class="task-text editable-text" data-edit-id="${editId}">${rowData[i - 1]}</span>
                         </label>
-                    `;
-                }
+                    </td>`;
             }
 
-            // Not ve saat sütunlarını ekle
-            row.insertAdjacentHTML('beforeend', `
-                <td><input type="text" class="note-input" id="note-${dayCounter}" placeholder="Günlük not..."></td>
+            const dayCounter = rowIndex + 1;
+            html += `
+                <td><textarea class="note-input" id="note-${dayCounter}" placeholder="Günlük not..."></textarea></td>
                 <td><span class="hour-badge" id="hour-${dayCounter}">0 Saat</span></td>
-            `);
-            dayCounter++;
+            `;
+
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+
+            if (document.body.classList.contains("edit-mode")) {
+                tr.querySelectorAll('.editable-text').forEach(el => el.setAttribute("contenteditable", "true"));
+            }
+        };
+
+        const applyDataToUI = () => {
+            let globalCheckedCount = 0;
+            const rows = document.querySelectorAll("#table-body tr");
+            const totalTasks = rows.length * 5;
+
+            rows.forEach(row => {
+                const rowTasks = row.querySelectorAll(".task-checkbox");
+                rowTasks.forEach(box => {
+                    const textSpan = box.nextElementSibling;
+                    const isChecked = cacheTasks[box.id] === true;
+                    box.checked = isChecked;
+                    if (isChecked) { textSpan.classList.add("completed-text"); globalCheckedCount++; } 
+                    else { textSpan.classList.remove("completed-text"); }
+                });
+
+                row.querySelectorAll('.editable-text').forEach(el => {
+                    const id = el.getAttribute('data-edit-id');
+                    if (cacheCustomTexts[id] && document.activeElement !== el) {
+                        el.innerText = cacheCustomTexts[id];
+                    }
+                });
+
+                row.querySelectorAll('.note-input').forEach(input => {
+                    if (document.activeElement !== input) {
+                        input.value = cacheNotes[input.id] || "";
+                    }
+                });
+            });
+
+            const percent = totalTasks === 0 ? 0 : Math.round((globalCheckedCount / totalTasks) * 100);
+            progressFill.style.width = `${percent}%`;
+            progressText.innerText = `%${percent} Tamamlandı`;
+            updateStats();
+        };
+
+        // Firebase Event'leri
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                connectionStatus.innerHTML = "🟢 Bağlı";
+                connectionStatus.className = "connection-status status-online";
+            } else {
+                connectionStatus.innerHTML = "🔴 Çevrimdışı";
+                connectionStatus.className = "connection-status status-offline";
+            }
         });
 
-        const checkboxes = document.querySelectorAll(".task-checkbox");
-        const noteInputs = document.querySelectorAll(".note-input");
+        onValue(ref(database, 'kamp/settings/startDate'), (snapshot) => {
+            currentStartDate = snapshot.val() || "2024-04-17";
+            startDatePicker.value = currentStartDate;
+            updateDatesInTable();
+        });
 
-        // ===================== DÜZENLEME MODU (EDIT MODE) =====================
+        startDatePicker.addEventListener("change", (e) => {
+            set(ref(database, 'kamp/settings/startDate'), e.target.value);
+        });
+
+        // Dinamik Satır Yönetimi (Ekle/Sil)
+        onValue(ref(database, 'kamp/settings/rowCount'), (snapshot) => {
+            const targetCount = snapshot.val() || 28; 
+            const currentCount = tbody.children.length;
+            
+            if (targetCount > currentCount) {
+                for (let i = currentCount; i < targetCount; i++) addRowToDOM(i);
+            } else if (targetCount < currentCount) {
+                for (let i = currentCount; i > targetCount; i--) {
+                    if (tbody.lastChild) tbody.removeChild(tbody.lastChild);
+                }
+            }
+            updateDatesInTable();
+            applyDataToUI();
+        });
+
+        addRowBtn.addEventListener("click", () => {
+            set(ref(database, 'kamp/settings/rowCount'), tbody.children.length + 1);
+        });
+
+        delRowBtn.addEventListener("click", () => {
+            const currentCount = tbody.children.length;
+            if (currentCount <= 28) {
+                alert("Asgari 28 günlük kamp planının altına düşülemez!");
+                return;
+            }
+            if(confirm("Son satırı silmek istediğinize emin misiniz?")) {
+                set(ref(database, 'kamp/settings/rowCount'), currentCount - 1);
+            }
+        });
+
+        // Verileri Çek
+        onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; applyDataToUI(); });
+        onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; applyDataToUI(); });
+        onValue(customTextRef, (snapshot) => { 
+            cacheCustomTexts = snapshot.val() || {}; 
+            document.querySelectorAll('thead .editable-text').forEach(el => {
+                const id = el.getAttribute('data-edit-id');
+                if (cacheCustomTexts[id] && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
+            });
+            applyDataToUI(); 
+        });
+
+        // Event Delegation (Tıklamalar)
+        tbody.addEventListener("change", (e) => {
+            if (e.target.classList.contains("task-checkbox")) {
+                set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked);
+                updateStats();
+            }
+        });
+
+        tbody.addEventListener("click", (e) => {
+            if (e.target.classList.contains("btn-complete-day")) {
+                const rowIndex = e.target.getAttribute("data-row");
+                const rowTasks = tbody.children[rowIndex].querySelectorAll(".task-checkbox");
+                let updates = {};
+                rowTasks.forEach(box => {
+                    updates[box.id] = true;
+                    box.checked = true; // Anında görsel geri bildirim
+                });
+                update(tasksRef, updates); // Tek seferde Firebase'e yolla
+            }
+        });
+
+        const saveNote = debounce((id, value) => { set(ref(database, 'kamp/notes/' + id), value); }, 800);
+        tbody.addEventListener("input", (e) => {
+            if (e.target.classList.contains("note-input")) {
+                saveNote(e.target.id, e.target.value);
+            }
+        });
+
+        const saveCustomText = debounce((id, text) => { set(ref(database, 'kamp/customTexts/' + id), text); }, 500);
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('editable-text')) {
+                const id = e.target.getAttribute('data-edit-id');
+                saveCustomText(id, e.target.innerText);
+                if (id.startsWith('th-time-') || id.startsWith('th-subj-')) updateStats();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.classList.contains('editable-text') && e.key === 'Enter') {
+                e.preventDefault(); e.target.blur();
+            }
+        });
+
+        // Dışa Aktar (Yedek İndir)
+        exportBtn.addEventListener("click", () => {
+            const backupData = {
+                tasks: cacheTasks,
+                notes: cacheNotes,
+                customTexts: cacheCustomTexts,
+                settings: { startDate: currentStartDate, rowCount: tbody.children.length }
+            };
+            const dataStr = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `YKS_Kamp_Yedek_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
         let isEditMode = false;
-        
         editBtn.addEventListener("click", () => {
             isEditMode = !isEditMode;
             const editables = document.querySelectorAll('.editable-text');
 
             if (isEditMode) {
                 document.body.classList.add("edit-mode");
-                editBtn.innerHTML = "💾 Düzenlemeyi Kapat";
+                editBtn.innerHTML = "💾 Kaydet";
                 editBtn.classList.add("active");
                 editables.forEach(el => el.setAttribute("contenteditable", "true"));
             } else {
                 document.body.classList.remove("edit-mode");
-                editBtn.innerHTML = "✏️ Programı Düzenle";
+                editBtn.innerHTML = "✏️ Düzenle";
                 editBtn.classList.remove("active");
                 editables.forEach(el => el.removeAttribute("contenteditable"));
-                // Moddan çıkınca satır içi HTML bozulmalarını düzelt
                 editables.forEach(el => { el.innerText = el.innerText.trim(); }); 
             }
         });
 
-        // Düzenlenen Metinleri Firebase'e Kaydetme
-        const saveCustomText = debounce((id, text) => {
-            set(ref(database, 'kamp/customTexts/' + id), text);
-        }, 500);
-
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('editable-text')) {
-                const id = e.target.getAttribute('data-edit-id');
-                const text = e.target.innerText;
-                saveCustomText(id, text);
-            }
-        });
-
-        // Firebase'den Özel Metinleri Çekme (Gerçek Zamanlı Güncelleme)
-        onValue(customTextRef, (snapshot) => {
-            const customTexts = snapshot.val() || {};
-            const editables = document.querySelectorAll('.editable-text');
-            
-            editables.forEach(el => {
-                const id = el.getAttribute('data-edit-id');
-                // Eğer kullanıcı şu an o kutuya yazı yazmıyorsa güncelle (yazarken kesilmesin diye)
-                if (customTexts[id] && document.activeElement !== el) {
-                    el.innerText = customTexts[id];
-                }
-            });
-        });
-
-        // ===================== GÖREVLER VE NOTLAR =====================
-        onValue(tasksRef, (snapshot) => {
-            const veriler = snapshot.val() || {};
-            let globalCheckedCount = 0;
-
-            rows.forEach((row, rowIndex) => {
-                let rowCheckedCount = 0;
-                const rowTasks = row.querySelectorAll(".task-checkbox");
-
-                rowTasks.forEach(box => {
-                    const textSpan = box.nextElementSibling;
-                    const isChecked = veriler[box.id] === true;
-                    box.checked = isChecked;
-
-                    if (isChecked) {
-                        textSpan.classList.add("completed-text");
-                        rowCheckedCount++;
-                        globalCheckedCount++;
-                    } else {
-                        textSpan.classList.remove("completed-text");
-                    }
-                });
-
-                const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
-                if (hourDisplay) hourDisplay.innerText = `${rowCheckedCount * 2} Saat`;
-            });
-
-            const percent = totalTasks === 0 ? 0 : Math.round((globalCheckedCount / totalTasks) * 100);
-            progressFill.style.width = `${percent}%`;
-            progressText.innerText = `%${percent} Tamamlandı`;
-        });
-
-        onValue(notesRef, (snapshot) => {
-            const notlar = snapshot.val() || {};
-            noteInputs.forEach(input => {
-                if (document.activeElement !== input) {
-                    input.value = notlar[input.id] || "";
-                }
-            });
-        });
-
-        // Checkbox ve Not listener'ları
-        checkboxes.forEach(box => {
-            box.addEventListener("change", (e) => {
-                set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked);
-            });
-        });
-
-        noteInputs.forEach(input => {
-            const saveNote = debounce((value) => { set(ref(database, 'kamp/notes/' + input.id), value); }, 800);
-            input.addEventListener("input", (e) => saveNote(e.target.value));
-        });
-
-        // ===================== DİĞER FONKSİYONLAR =====================
         const currentTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", currentTheme);
         themeToggle.addEventListener("click", () => {
@@ -423,23 +587,15 @@
             localStorage.setItem("theme", theme);
         });
 
-        // Sıfırlama (Artık değiştirilen isimleri de sıfırlıyor)
         resetBtn.addEventListener("click", () => {
-            if (confirm("🚨 İlerlemeniz, notlarınız ve ÖZELLEŞTİRDİĞİNİZ TÜM DERS İSİMLERİ sıfırlanacak.\n\nEmin misiniz?")) {
+            if (confirm("🚨 DİKKAT! Tüm ilerleme, notlar ve isimler SİLECEK.\nYedek aldınız mı?\n\nDevam etmek istiyor musunuz?")) {
                 const originalText = resetBtn.innerHTML;
                 resetBtn.innerHTML = "⏳ Siliniyor...";
                 resetBtn.disabled = true;
 
                 Promise.all([
-                    remove(tasksRef),
-                    remove(notesRef),
-                    remove(customTextRef) // Düzenlenen metinleri de siler
-                ]).finally(() => {
-                    resetBtn.innerHTML = originalText;
-                    resetBtn.disabled = false;
-                    // Orijinal HTML yapılarını geri getirmek için sayfayı yenile
-                    window.location.reload(); 
-                });
+                    remove(tasksRef), remove(notesRef), remove(customTextRef), remove(settingsRef)
+                ]).finally(() => { window.location.reload(); });
             }
         });
     });
