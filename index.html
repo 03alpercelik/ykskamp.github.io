@@ -303,13 +303,10 @@
         const todayString = `${today.getDate()} ${months[today.getMonth()]} ${days[today.getDay()]}`;
         let currentStartDate = "2024-04-17";
 
-        let cacheTasks = {};
-        let cacheNotes = {};
-        let cacheCustomTexts = {};
-
-        // YKS Geri Sayım (Tahmini Tarih: 21 Haziran)
-        const yksDate = new Date(new Date().getFullYear(), 5, 21, 10, 15, 0).getTime(); 
-        setInterval(() => {
+        // YKS Geri Sayım (Tahmini Tarih: 20 Haziran) - Sadece Gün
+        const yksDate = new Date(new Date().getFullYear(), 5, 20, 10, 15, 0).getTime(); 
+        
+        const updateCountdown = () => {
             const now = new Date().getTime();
             const distance = yksDate - now;
             if(distance < 0) {
@@ -317,9 +314,10 @@
                 return;
             }
             const d = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            document.getElementById('yks-countdown').innerText = `🎯 YKS: ${d} Gün ${h} Saat`;
-        }, 1000);
+            document.getElementById('yks-countdown').innerText = `🎯 YKS: ${d} Gün`;
+        };
+        updateCountdown(); // İlk yüklemede anında görünsün
+        setInterval(updateCountdown, 1000 * 60 * 60); // Sadece gün olduğu için saatte bir güncellenmesi yeterli
 
         const debounce = (func, delay) => {
             let timeout;
@@ -505,7 +503,7 @@
                 <td>
                     <div class="date-wrapper">
                         <span class="date-cell" style="font-weight: 600;"></span>
-                        <button class="btn-complete-day" data-row="${rowIndex}" title="Tüm Günü Tamamla">✅</button>
+                        <button class="btn-complete-day" data-row="${rowIndex}" title="Tüm Günü Tamamla/Temizle">✅</button>
                     </div>
                 </td>`;
             
@@ -627,12 +625,24 @@
             if (e.target.classList.contains("task-checkbox")) { set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked); updateStats(); }
         });
 
+        // ✅ Günü Tamamla / Temizle Mantığı (Toggle)
         tbody.addEventListener("click", (e) => {
             if (e.target.classList.contains("btn-complete-day")) {
                 const rowIndex = e.target.getAttribute("data-row");
                 const rowTasks = tbody.children[rowIndex].querySelectorAll(".task-checkbox");
+                
+                // Satırdaki tüm görevlerin halihazırda işaretli olup olmadığını kontrol et
+                let allChecked = Array.from(rowTasks).every(box => box.checked);
+                
                 let updates = {};
-                rowTasks.forEach(box => { updates[box.id] = true; box.checked = true; });
+                // Eğer hepsi işaretliyse tiki kaldır (false), değilse hepsini işaretle (true)
+                let newState = !allChecked;
+                
+                rowTasks.forEach(box => { 
+                    updates[box.id] = newState; 
+                    box.checked = newState; // Anında görsel tepki
+                });
+                
                 update(tasksRef, updates); 
             }
         });
