@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>YKS Kamp Takip Pro - Modern Edition (17 Nisan Başlangıç - TYT Kimya 5 Gün)</title>
+    <title>YKS Kamp Takip Pro - Dinamik Versiyon</title>
     <style>
         :root {
             --bg-color: #f8f9fa;
@@ -17,6 +17,7 @@
             --row-odd: #ffffff;
             --highlight: #fdcb6e;
             --accent: #00b894;
+            --edit-color: #0984e3;
         }
 
         [data-theme="dark"] {
@@ -30,6 +31,7 @@
             --row-odd: #0f172a;
             --highlight: #eab308;
             --accent: #10b981;
+            --edit-color: #3b82f6;
         }
 
         body {
@@ -57,187 +59,95 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .controls-left, .controls-right {
+            display: flex;
+            gap: 10px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 10px 16px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
             font-size: 14px;
-            transition: transform 0.2s, filter 0.2s;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .btn:active { transform: scale(0.95); }
         .btn-theme { background: #636e72; color: white; }
         .btn-reset { background: #ff7675; color: white; }
+        .btn-edit { background: var(--edit-color); color: white; }
+        .btn-edit.active { background: var(--accent); animation: pulse 2s infinite; }
 
-        .progress-wrapper {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .progress-bar-container {
-            width: 100%;
-            height: 10px;
-            background-color: var(--table-border);
-            border-radius: 20px;
-            overflow: hidden;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 184, 148, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0); }
         }
 
-        .content {
-            padding: 30px 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .table-container {
-            width: 100%;
-            max-width: 1300px;
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-            border: 1px solid var(--table-border);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            min-width: 1100px;
-            color: var(--text-color);
-        }
-        th, td {
-            border-bottom: 1px solid var(--table-border);
-            padding: 14px;
-            text-align: left;
-            color: var(--text-color);
-        }
-        thead th {
-            background: var(--header-bg);
-            color: white;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-size: 11px;
-        }
-        .time-tag {
-            display: block;
-            font-size: 10px;
-            margin-top: 5px;
-            opacity: 0.9;
-            background: rgba(255,255,255,0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
-            width: fit-content;
-        }
+        .progress-wrapper { max-width: 1300px; margin: 0 auto; }
+        .progress-header { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+        .progress-bar-container { width: 100%; height: 10px; background-color: var(--table-border); border-radius: 20px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        .content { padding: 30px 20px; display: flex; justify-content: center; }
+        .table-container { width: 100%; max-width: 1300px; background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow-x: auto; border: 1px solid var(--table-border); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1100px; color: var(--text-color); }
+        th, td { border-bottom: 1px solid var(--table-border); padding: 14px; text-align: left; color: var(--text-color); }
+        thead th { background: var(--header-bg); color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
+        
+        .time-tag { display: block; font-size: 10px; margin-top: 5px; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; width: fit-content; }
         tr:nth-child(even) { background-color: var(--row-even); }
         tr:nth-child(odd) { background-color: var(--row-odd); }
         
-        .task-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            gap: 10px;
-            color: inherit;
+        .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; }
+        .completed-text { text-decoration: line-through; opacity: 0.7; }
+        .note-input { width: 100%; padding: 8px; border: 1px solid var(--table-border); border-radius: 6px; background: transparent; color: var(--text-color); font-size: 12px; }
+
+        /* VURGULAMA BÖLÜMÜ */
+        .today-highlight, .today-highlight td { background-color: var(--highlight) !important; color: #000000 !important; font-weight: 700 !important; }
+        .today-highlight .task-label, .today-highlight .task-text, .today-highlight .completed-text { color: #000000 !important; }
+        .today-highlight .time-tag { background: rgba(0,0,0,0.15) !important; color: #111111 !important; }
+        .today-highlight .note-input { border-color: #666666 !important; color: #000000 !important; background: rgba(255,255,255,0.4) !important; }
+        .today-highlight .note-input::placeholder { color: #333333 !important; }
+        .today-highlight .hour-badge { background: #000000 !important; color: var(--highlight) !important; }
+
+        .hour-badge { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; display: inline-block; min-width: 50px; text-align: center; }
+
+        /* DÜZENLEME MODU (EDIT MODE) STİLLERİ */
+        .editable-text { transition: all 0.2s; padding: 2px 4px; border-radius: 4px; border: 1px solid transparent; }
+        body.edit-mode .editable-text { 
+            border: 1px dashed var(--accent); 
+            background: rgba(0, 184, 148, 0.1); 
+            cursor: text; 
         }
-        .completed-text {
-            text-decoration: line-through;
-            opacity: 0.7;
+        body.edit-mode .editable-text:focus {
+            outline: none;
+            background: rgba(0, 184, 148, 0.2);
+            border-style: solid;
+        }
+        body.edit-mode .task-checkbox {
+            pointer-events: none; /* Düzenlerken yanlışlıkla tiklenmesini önler */
+            opacity: 0.5;
         }
 
-        .note-input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid var(--table-border);
-            border-radius: 6px;
-            background: transparent;
-            color: var(--text-color);
-            font-size: 12px;
-        }
-
-        /* --- VURGULAMA BÖLÜMÜ --- */
-        .today-highlight, .today-highlight td {
-            background-color: var(--highlight) !important;
-            color: #000000 !important;
-            font-weight: 700 !important;
-        }
-        .today-highlight .task-label, 
-        .today-highlight .task-text, 
-        .today-highlight .completed-text {
-            color: #000000 !important;
-        }
-        .today-highlight .time-tag { 
-            background: rgba(0,0,0,0.15) !important; 
-            color: #111111 !important; 
-        }
-        .today-highlight .note-input { 
-            border-color: #666666 !important; 
-            color: #000000 !important; 
-            background: rgba(255,255,255,0.4) !important; 
-        }
-        .today-highlight .note-input::placeholder {
-            color: #333333 !important;
-        }
-        .today-highlight .hour-badge { 
-            background: #000000 !important; 
-            color: var(--highlight) !important; 
-        }
-
-        .hour-badge {
-            background: var(--accent);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 12px;
-            display: inline-block;
-            min-width: 50px;
-            text-align: center;
-        }
-
-        /* MOBİL İYİLEŞTİRME */
+        /* MOBİL */
         @media (max-width: 768px) {
-            table {
-                min-width: auto;
-                font-size: 12px;
-            }
-            th, td {
-                padding: 10px 6px;
-            }
-            .time-tag { 
-                font-size: 9px; 
-                padding: 1px 4px; 
-            }
-            .hour-badge { 
-                font-size: 11px; 
-                padding: 3px 8px; 
-            }
-            thead th:nth-child(n+2) { 
-                width: 18%; 
-            }
-            .note-input {
-                font-size: 11px;
-                padding: 6px;
-            }
-        }
-
-        @media print {
-            .sticky-header, .btn { display: none; }
+            table { min-width: auto; font-size: 12px; }
+            th, td { padding: 10px 6px; }
+            .time-tag { font-size: 9px; padding: 1px 4px; }
+            .hour-badge { font-size: 11px; padding: 3px 8px; }
+            thead th:nth-child(n+2) { width: 18%; }
+            .note-input { font-size: 11px; padding: 6px; }
+            .controls { justify-content: center; }
         }
     </style>
 </head>
@@ -245,12 +155,17 @@
 
 <div class="sticky-header">
     <div class="controls">
-        <button class="btn btn-theme" id="theme-toggle">🌙 Mod Değiştir</button>
-        <button class="btn btn-reset" id="reset-btn">🗑️ Sıfırla</button>
+        <div class="controls-left">
+            <button class="btn btn-theme" id="theme-toggle">🌙 Mod</button>
+            <button class="btn btn-edit" id="edit-btn">✏️ Programı Düzenle</button>
+        </div>
+        <div class="controls-right">
+            <button class="btn btn-reset" id="reset-btn">🗑️ Tümünü Sıfırla</button>
+        </div>
     </div>
     <div class="progress-wrapper">
         <div class="progress-header">
-            <span id="current-date-info">YKS Kamp Takvimi (17 Nisan Başlangıç)</span>
+            <span id="current-date-info">YKS Kamp Takvimi</span>
             <span id="progress-text">%0 Tamamlandı</span>
         </div>
         <div class="progress-bar-container">
@@ -264,24 +179,22 @@
         <table id="schedule-table">
             <thead>
                 <tr>
-                    <th>Tarih</th>
-                    <th>Matematik <span class="time-tag">08:30 - 10:30</span></th>
-                    <th>Deneme <span class="time-tag">10:45 - 12:45</span></th>
-                    <th>Fizik <span class="time-tag">14:15 - 16:15</span></th>
-                    <th>Kimya <span class="time-tag">16:30 - 18:30</span></th>
-                    <th>Biyoloji <span class="time-tag">19:00 - 21:00</span></th>
+                    <th><span class="editable-text" data-edit-id="th-date">Tarih</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-1">Matematik</span> <span class="time-tag editable-text" data-edit-id="th-time-1">08:30 - 10:30</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-2">Deneme</span> <span class="time-tag editable-text" data-edit-id="th-time-2">10:45 - 12:45</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-3">Fizik</span> <span class="time-tag editable-text" data-edit-id="th-time-3">14:15 - 16:15</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-4">Kimya</span> <span class="time-tag editable-text" data-edit-id="th-time-4">16:30 - 18:30</span></th>
+                    <th><span class="editable-text" data-edit-id="th-subj-5">Biyoloji</span> <span class="time-tag editable-text" data-edit-id="th-time-5">19:00 - 21:00</span></th>
                     <th>Günün Notu</th>
                     <th>Toplam Saat</th>
                 </tr>
             </thead>
             <tbody>
-                <!-- 17 Nisan'dan başlıyor - orijinal program aynı, sadece tüm tarihler +1 gün kaydırıldı -->
                 <tr><td>17 Nisan Cuma</td><td>İntegral (3. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Madde ve Özellikleri (2. Gün)</td><td>TYT Kimya (1. Gün)</td><td>Dolaşım ve Bağışıklık (3. Gün)</td></tr>
                 <tr><td>18 Nisan Cumartesi</td><td>İntegral (4. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Isı, Sıcaklık ve Genleşme (1. Gün)</td><td>TYT Kimya (2. Gün)</td><td>Sindirim Sistemi (1. Gün)</td></tr>
                 <tr><td>19 Nisan Pazar</td><td>İntegral (5. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Isı, Sıcaklık ve Genleşme (2. Gün)</td><td>TYT Kimya (3. Gün)</td><td>Sindirim Sistemi (2. Gün)</td></tr>
                 <tr><td>20 Nisan Pazartesi</td><td>Trigonometri (1. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>İş, Güç ve Enerji (1. Gün)</td><td>TYT Kimya (4. Gün)</td><td>Solunum Sistemi (1. Gün)</td></tr>
                 <tr><td>21 Nisan Salı</td><td>Trigonometri (2. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>İş, Güç ve Enerji (2. Gün)</td><td>TYT Kimya (5. Gün)</td><td>Solunum Sistemi (2. Gün)</td></tr>
-                <!-- TYT Kimya burada bitti (tam 5 gün), sonrası orijinal akışa göre devam ediyor -->
                 <tr><td>22 Nisan Çarşamba</td><td>Trigonometri (3. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Bir Boyutta Sabit İvmeli Hareket (1. Gün)</td><td>Gazlar (2. Gün)</td><td>Boşaltım Sistemi (1. Gün)</td></tr>
                 <tr><td>23 Nisan Perşembe</td><td>Trigonometri (4. Gün)</td><td>12 Prob. + TYT Mat. Türkçe</td><td>Bir Boyutta Sabit İvmeli Hareket (2. Gün)</td><td>Gazlar (3. Gün)</td><td>Boşaltım Sistemi (2. Gün)</td></tr>
                 <tr><td>24 Nisan Cuma</td><td>Trigonometri (5. Gün)</td><td>Mat. Deneme + TYT Sosyal</td><td>Bir Boyutta Sabit İvmeli Hareket (3. Gün)</td><td>Çözeltiler (1. Gün)</td><td>Üreme ve Gelişim (1. Gün)</td></tr>
@@ -329,6 +242,7 @@
     const database = getDatabase(app);
     const tasksRef = ref(database, 'kamp/tasks/');
     const notesRef = ref(database, 'kamp/notes/');
+    const customTextRef = ref(database, 'kamp/customTexts/'); // YENİ: Özel metinler için
 
     document.addEventListener("DOMContentLoaded", () => {
         const table = document.getElementById("schedule-table");
@@ -337,6 +251,7 @@
         const progressText = document.getElementById("progress-text");
         const themeToggle = document.getElementById("theme-toggle");
         const resetBtn = document.getElementById("reset-btn");
+        const editBtn = document.getElementById("edit-btn");
 
         let totalTasks = 0;
         let dayCounter = 1;
@@ -346,9 +261,9 @@
         const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const todayString = `${today.getDate()} ${months[today.getMonth()]} ${days[today.getDay()]}`;
-        document.getElementById("current-date-info").innerText = `Bugün: ${todayString} (17 Nisan Başlangıçlı Kamp)`;
+        document.getElementById("current-date-info").innerText = `Bugün: ${todayString}`;
 
-        // Debounce fonksiyonu (notlar için performans)
+        // Debounce fonksiyonu (performans için)
         const debounce = (func, delay) => {
             let timeout;
             return (...args) => {
@@ -357,27 +272,30 @@
             };
         };
 
-        // Satırları işle
-        rows.forEach((row) => {
+        // Tabloyu İşle ve ID'leri Ekle
+        rows.forEach((row, rowIndex) => {
             const cells = row.cells;
+            
+            // Tarih Sütununu düzenlenebilir yap
             const dateText = cells[0].innerText.trim();
+            cells[0].innerHTML = `<span class="editable-text" data-edit-id="date-${rowIndex}">${dateText}</span>`;
 
-            // Bugün vurgusu + otomatik scroll
             if (dateText === todayString) {
                 row.classList.add("today-highlight");
                 row.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
-            // 5 ders sütununu checkbox'a çevir
+            // 5 ders sütununu checkbox'a ve düzenlenebilir metne çevir
             for (let i = 1; i < 6; i++) {
                 const cell = cells[i];
                 const text = cell.innerText.trim();
                 if (text) {
                     const taskId = `task-${totalTasks++}`;
+                    const editId = `task-text-${rowIndex}-${i}`;
                     cell.innerHTML = `
                         <label class="task-label">
                             <input type="checkbox" id="${taskId}" class="task-checkbox">
-                            <span class="task-text">${text}</span>
+                            <span class="task-text editable-text" data-edit-id="${editId}">${text}</span>
                         </label>
                     `;
                 }
@@ -394,8 +312,56 @@
         const checkboxes = document.querySelectorAll(".task-checkbox");
         const noteInputs = document.querySelectorAll(".note-input");
 
-        // ===================== FIREBASE GERÇEK ZAMANLI =====================
-        // Görevler ve saat hesaplama
+        // ===================== DÜZENLEME MODU (EDIT MODE) =====================
+        let isEditMode = false;
+        
+        editBtn.addEventListener("click", () => {
+            isEditMode = !isEditMode;
+            const editables = document.querySelectorAll('.editable-text');
+
+            if (isEditMode) {
+                document.body.classList.add("edit-mode");
+                editBtn.innerHTML = "💾 Düzenlemeyi Kapat";
+                editBtn.classList.add("active");
+                editables.forEach(el => el.setAttribute("contenteditable", "true"));
+            } else {
+                document.body.classList.remove("edit-mode");
+                editBtn.innerHTML = "✏️ Programı Düzenle";
+                editBtn.classList.remove("active");
+                editables.forEach(el => el.removeAttribute("contenteditable"));
+                // Moddan çıkınca satır içi HTML bozulmalarını düzelt
+                editables.forEach(el => { el.innerText = el.innerText.trim(); }); 
+            }
+        });
+
+        // Düzenlenen Metinleri Firebase'e Kaydetme
+        const saveCustomText = debounce((id, text) => {
+            set(ref(database, 'kamp/customTexts/' + id), text);
+        }, 500);
+
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('editable-text')) {
+                const id = e.target.getAttribute('data-edit-id');
+                const text = e.target.innerText;
+                saveCustomText(id, text);
+            }
+        });
+
+        // Firebase'den Özel Metinleri Çekme (Gerçek Zamanlı Güncelleme)
+        onValue(customTextRef, (snapshot) => {
+            const customTexts = snapshot.val() || {};
+            const editables = document.querySelectorAll('.editable-text');
+            
+            editables.forEach(el => {
+                const id = el.getAttribute('data-edit-id');
+                // Eğer kullanıcı şu an o kutuya yazı yazmıyorsa güncelle (yazarken kesilmesin diye)
+                if (customTexts[id] && document.activeElement !== el) {
+                    el.innerText = customTexts[id];
+                }
+            });
+        });
+
+        // ===================== GÖREVLER VE NOTLAR =====================
         onValue(tasksRef, (snapshot) => {
             const veriler = snapshot.val() || {};
             let globalCheckedCount = 0;
@@ -427,7 +393,6 @@
             progressText.innerText = `%${percent} Tamamlandı`;
         });
 
-        // Notlar
         onValue(notesRef, (snapshot) => {
             const notlar = snapshot.val() || {};
             noteInputs.forEach(input => {
@@ -437,25 +402,19 @@
             });
         });
 
-        // Checkbox listener'ları
+        // Checkbox ve Not listener'ları
         checkboxes.forEach(box => {
             box.addEventListener("change", (e) => {
                 set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked);
             });
         });
 
-        // Not input'ları (debounce ile optimize)
         noteInputs.forEach(input => {
-            const saveNote = debounce((value) => {
-                set(ref(database, 'kamp/notes/' + input.id), value);
-            }, 800);
-
-            input.addEventListener("input", (e) => {
-                saveNote(e.target.value);
-            });
+            const saveNote = debounce((value) => { set(ref(database, 'kamp/notes/' + input.id), value); }, 800);
+            input.addEventListener("input", (e) => saveNote(e.target.value));
         });
 
-        // Tema değiştir
+        // ===================== DİĞER FONKSİYONLAR =====================
         const currentTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", currentTheme);
         themeToggle.addEventListener("click", () => {
@@ -464,19 +423,23 @@
             localStorage.setItem("theme", theme);
         });
 
-        // Sıfırlama butonu
+        // Sıfırlama (Artık değiştirilen isimleri de sıfırlıyor)
         resetBtn.addEventListener("click", () => {
-            if (confirm("🚨 TÜM ilerleme ve notlar KALICI OLARAK silinecek.\n\nEmin misin?")) {
+            if (confirm("🚨 İlerlemeniz, notlarınız ve ÖZELLEŞTİRDİĞİNİZ TÜM DERS İSİMLERİ sıfırlanacak.\n\nEmin misiniz?")) {
                 const originalText = resetBtn.innerHTML;
                 resetBtn.innerHTML = "⏳ Siliniyor...";
                 resetBtn.disabled = true;
 
-                remove(tasksRef)
-                    .then(() => remove(notesRef))
-                    .finally(() => {
-                        resetBtn.innerHTML = originalText;
-                        resetBtn.disabled = false;
-                    });
+                Promise.all([
+                    remove(tasksRef),
+                    remove(notesRef),
+                    remove(customTextRef) // Düzenlenen metinleri de siler
+                ]).finally(() => {
+                    resetBtn.innerHTML = originalText;
+                    resetBtn.disabled = false;
+                    // Orijinal HTML yapılarını geri getirmek için sayfayı yenile
+                    window.location.reload(); 
+                });
             }
         });
     });
