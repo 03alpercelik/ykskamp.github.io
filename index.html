@@ -757,7 +757,108 @@
             if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown');
         });
 
-    });
+            // --- EKSİK ÖZELLİKLERİN EKLENMESİ ---
+
+        // 1. Tabloyu Sıfırla (Reset)
+        document.getElementById('reset-btn').addEventListener('click', async () => {
+            if (confirm("Tüm tablo verileri, tamamlanan görevler ve notlar KALICI olarak silinecek. Emin misin?")) {
+                if (database) {
+                    try {
+                        // Firebase üzerindeki verileri temizle (UI otomatik güncellenecek)
+                        await set(ref(database, `${SHARED_PATH}tasks`), null);
+                        await set(ref(database, `${SHARED_PATH}notes`), null);
+                        await set(ref(database, `${SHARED_PATH}customTexts`), null);
+                        alert("Tablo başarıyla sıfırlandı!");
+                    } catch (error) {
+                        console.error("Sıfırlama hatası:", error);
+                        alert("Sıfırlama sırasında bir hata oluştu.");
+                    }
+                }
+            }
+        });
+
+        // 2. Yedek İndir (Export)
+        document.getElementById('export-btn').addEventListener('click', () => {
+            const backupData = {
+                tasks: cacheTasks,
+                notes: cacheNotes,
+                customTexts: cacheCustomTexts,
+                settings: { 
+                    startDate: currentStartDate, 
+                    targetHours: currentTarget, 
+                    colCount: currentCols, 
+                    rowCount: currentRowCount 
+                }
+            };
+            
+            // JSON formatında dosyayı oluştur ve indir
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "yks_kamp_yedek_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(downloadAnchorNode); // Firefox uyumluluğu için
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
+        // 3. Yedek Yükle (Import)
+        // Yükle butonuna basınca gizli file input'unu tetikler
+        document.getElementById('import-trigger-btn').addEventListener('click', () => {
+            document.getElementById('import-file').click();
+        });
+
+        // Dosya seçildiğinde okuma işlemi
+        document.getElementById('import-file').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (confirm("Mevcut verilerinin üzerine yazılacak. Onaylıyor musun?")) {
+                        if (database) {
+                            if (data.tasks) await set(ref(database, `${SHARED_PATH}tasks`), data.tasks);
+                            if (data.notes) await set(ref(database, `${SHARED_PATH}notes`), data.notes);
+                            if (data.customTexts) await set(ref(database, `${SHARED_PATH}customTexts`), data.customTexts);
+                            if (data.settings) await set(ref(database, `${SHARED_PATH}settings`), data.settings);
+                            alert("Yedek başarıyla yüklendi!");
+                        }
+                    }
+                } catch (err) {
+                    console.error("Yedek yükleme hatası:", err);
+                    alert("Geçersiz yedek dosyası! Lütfen indirdiğin .json dosyasını seçtiğinden emin ol.");
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Aynı dosyayı üst üste seçebilmek için temizle
+        });
+
+        // 4. Bildirimleri Aç (Notifications)
+        document.getElementById('notify-btn').addEventListener('click', () => {
+            if (!("Notification" in window)) {
+                alert("Tarayıcın masaüstü/mobil bildirimleri desteklemiyor.");
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                alert("Bildirimler zaten açık!");
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("YKS Kamp Takip", {
+                            body: "Harika! Bildirim izinleri başarıyla verildi.",
+                            icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png"
+                        });
+                    } else {
+                        alert("Bildirim izni verilmedi.");
+                    }
+                });
+            } else {
+                alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
+            }
+        });
+});
 </script>
 
 </body>
