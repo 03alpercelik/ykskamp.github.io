@@ -159,7 +159,12 @@
             .dashboard { grid-template-columns: 1fr; }
             .search-input { width: 100%; margin-top: 5px; }
             .btn-complete-day { padding: 8px 12px; font-size: 16px; background: var(--row-even); border: 2px solid var(--table-border); border-radius: 8px; opacity: 0.8; }
-        }
+        }        /* Ayarlar Menüsü İyileştirmesi */
+        .dropdown-content { min-width: 220px; padding: 8px 0; border-radius: 12px; }
+        .dropdown-content .drop-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; white-space: nowrap; padding: 12px 16px; width: 100%; text-align: left; border: none; background: transparent; color: var(--text-color); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .dropdown-content input[type="number"] { width: 45px !important; padding: 4px; border-radius: 6px; border: 1px solid var(--table-border) !important; background: var(--bg-color) !important; color: var(--text-color) !important; text-align: center; font-weight: 600; }
+        .dropdown-content .drop-item:hover { background-color: var(--dropdown-hover); }
+
     </style>
 </head>
 <body>
@@ -194,10 +199,12 @@
     <div class="progress-wrapper">
         <div class="progress-header">
             <span id="current-date-info">YKS Kamp Takvimi</span>
-            <div style="display:flex; gap:10px; align-items:center;">
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
                 <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplanıyor...</span>
                 <span id="progress-text">%0 Tamamlandı</span>
             </div>
+
         </div>
         <div class="progress-bar-container">
             <div class="progress-bar-fill" id="progress-fill"></div>
@@ -482,6 +489,30 @@
                 box.title = `${dateCell.innerText} \nÇalışma: ${hours.toFixed(1)} Saat\nHedef: ${currentTarget} Saat`;
                 container.appendChild(box);
             });
+            // --- STREAK (SERİ) HESAPLAMA ---
+            let currentStreak = 0;
+            const todayZ = new Date(); 
+            todayZ.setHours(0,0,0,0);
+            
+            rows.forEach(row => {
+                const dateCell = row.querySelector('.date-cell');
+                if (!dateCell) return;
+                const dateStr = dateCell.dataset.fulldate;
+                const hours = dailyHoursMap[dateStr] || 0;
+                
+                const parts = dateStr.split('-');
+                const rowDate = new Date(parts[0], parts[1]-1, parts[2]);
+
+                if (rowDate < todayZ) { 
+                    if (hours >= currentTarget) currentStreak++;
+                    else currentStreak = 0; 
+                } else if (rowDate.getTime() === todayZ.getTime()) { 
+                    if (hours >= currentTarget) currentStreak++;
+                }
+            });
+
+            const streakEl = document.getElementById('streak-counter');
+            if (streakEl) streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
 
             // Dashboard & İstatistikler
             const subjNames = [];
@@ -564,11 +595,12 @@
         settingsRef = ref(database, `${SHARED_PATH}settings/`);
         const connectedRef = ref(database, '.info/connected');
 
-        onValue(connectedRef, (snap) => {
+                onValue(connectedRef, (snap) => {
             const cs = document.getElementById("connection-status");
-            if (snap.val() === true) { cs.innerHTML = "🟢 Canlı Senkron"; cs.className = "connection-status status-online"; } 
-            else { cs.innerHTML = "🔴 Çevrimdışı (Cache)"; cs.className = "connection-status status-offline"; }
+            if (snap.val() === true) { cs.innerHTML = "🟢 Çevrimiçi"; cs.className = "connection-status status-online"; } 
+            else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
         });
+
 
         onValue(settingsRef, (snapshot) => {
             const s = snapshot.val() || {};
