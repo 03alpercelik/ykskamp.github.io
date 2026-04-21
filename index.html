@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>YKS Kamp Takip Pro - Analiz Versiyonu</title>
+    <title>YKS Kamp Takip Pro - Cihazlar Arası Senkron</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -256,7 +256,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"; // Auth Eklendi
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCtlXFnB8OTQ-P_QKH2fAexX8UlLTRpXcg",
@@ -273,40 +273,11 @@
     const database = getDatabase(app);
     const auth = getAuth(app);
     
-    let userUid = null;
+    // Her cihazın bağlanacağı ortak veri yolu (Cross-device sync için)
+    const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
+    
     let tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
     const connectedRef = ref(database, '.info/connected');
-
-    const baseSchedule = [
-        ["İntegral (3. Gün)", "12 Prob. + TYT Mat. Türkçe", "Madde ve Özellikleri (2. Gün)", "TYT Kimya (1. Gün)", "Dolaşım ve Bağışıklık (3. Gün)"],
-        ["İntegral (4. Gün)", "Mat. Deneme + TYT Sosyal", "Isı, Sıcaklık ve Genleşme (1. Gün)", "TYT Kimya (2. Gün)", "Sindirim Sistemi (1. Gün)"],
-        ["İntegral (5. Gün)", "12 Prob. + TYT Mat. Türkçe", "Isı, Sıcaklık ve Genleşme (2. Gün)", "TYT Kimya (3. Gün)", "Sindirim Sistemi (2. Gün)"],
-        ["Trigonometri (1. Gün)", "Mat. Deneme + TYT Sosyal", "İş, Güç ve Enerji (1. Gün)", "TYT Kimya (4. Gün)", "Solunum Sistemi (1. Gün)"],
-        ["Trigonometri (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "İş, Güç ve Enerji (2. Gün)", "TYT Kimya (5. Gün)", "Solunum Sistemi (2. Gün)"],
-        ["Trigonometri (3. Gün)", "Mat. Deneme + TYT Sosyal", "Bir Boyutta Sabit İvmeli Hareket (1. Gün)", "Gazlar (2. Gün)", "Boşaltım Sistemi (1. Gün)"],
-        ["Trigonometri (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Bir Boyutta Sabit İvmeli Hareket (2. Gün)", "Gazlar (3. Gün)", "Boşaltım Sistemi (2. Gün)"],
-        ["Trigonometri (5. Gün)", "Mat. Deneme + TYT Sosyal", "Bir Boyutta Sabit İvmeli Hareket (3. Gün)", "Çözeltiler (1. Gün)", "Üreme ve Gelişim (1. Gün)"],
-        ["Trigonometri (6. Gün)", "12 Prob. + TYT Mat. Türkçe", "İtme ve Momentum (1. Gün)", "Çözeltiler (2. Gün)", "Üreme ve Gelişim (2. Gün)"],
-        ["Trigonometri (7. Gün)", "Mat. Deneme + TYT Sosyal", "İtme ve Momentum (2. Gün)", "Çözeltiler (3. Gün)", "Komünite ve Popülasyon (1. Gün)"],
-        ["Trigonometri (8. Gün)", "12 Prob. + TYT Mat. Türkçe", "İtme ve Momentum (3. Gün)", "Enerji (Entalpi) (1. Gün)", "Komünite ve Popülasyon (2. Gün)"],
-        ["Trigonometri (9. Gün)", "Mat. Deneme + TYT Sosyal", "Çembersel Hareket (1. Gün)", "Enerji (Entalpi) (2. Gün)", "Komünite ve Popülasyon (3. Gün)"],
-        ["Trigonometri (10. Gün)", "12 Prob. + TYT Mat. Türkçe", "Çembersel Hareket (2. Gün)", "Kimyasal Hız (1. Gün)", "Genden Proteine (1. Gün)"],
-        ["2. Der. Denk. (1. Gün)", "Mat. Deneme + TYT Sosyal", "Çembersel Hareket (3. Gün)", "Kimyasal Hız (2. Gün)", "Genden Proteine (2. Gün)"],
-        ["2. Der. Denk. (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Kütle Çekimi ve Kepler", "Kimyasal Denge (1. Gün)", "Genden Proteine (3. Gün)"],
-        ["2. Der. Denk. (3. Gün)", "Mat. Deneme + TYT Sosyal", "Dalga Mekaniği (1. Gün)", "Kimyasal Denge (2. Gün)", "Genden Proteine (4. Gün)"],
-        ["2. Der. Denk. (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Dalga Mekaniği (2. Gün)", "Kimyasal Denge (3. Gün)", "Canlılarda Enerji Dön. (1. Gün)"],
-        ["Parabol (1. Gün)", "Mat. Deneme + TYT Sosyal", "Dalga Mekaniği (3. Gün)", "Asit-Baz Dengesi (1. Gün)", "Canlılarda Enerji Dön. (2. Gün)"],
-        ["Parabol (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Atom Fiziği/Radyoakt. (1. Gün)", "Asit-Baz Dengesi (2. Gün)", "Canlılarda Enerji Dön. (3. Gün)"],
-        ["Logaritma (1. Gün)", "Mat. Deneme + TYT Sosyal", "Atom Fiziği/Radyoakt. (2. Gün)", "Asit-Baz Dengesi (3. Gün)", "Canlılarda Enerji Dön. (4. Gün)"],
-        ["Logaritma (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Atom Fiziği/Radyoakt. (3. Gün)", "Çözünürlük Dengesi (1. Gün)", "Canlılarda Enerji Dön. (5. Gün)"],
-        ["Diziler (1. Gün)", "Mat. Deneme + TYT Sosyal", "Modern Fizik (1. Gün)", "Çözünürlük Dengesi (2. Gün)", "Bitki Biyolojisi (1. Gün)"],
-        ["Diziler (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Modern Fizik (2. Gün)", "Kimya ve Elektrik (1. Gün)", "Bitki Biyolojisi (2. Gün)"],
-        ["PKOB (1. Gün)", "Mat. Deneme + TYT Sosyal", "Modern Fizik (3. Gün)", "Kimya ve Elektrik (2. Gün)", "Bitki Biyolojisi (3. Gün)"],
-        ["PKOB (2. Gün)", "12 Prob. + TYT Mat. Türkçe", "Teknolojideki Uyg. (1. Gün)", "Kimya ve Elektrik (3. Gün)", "Bitki Biyolojisi (4. Gün)"],
-        ["PKOB (3. Gün)", "Mat. Deneme + TYT Sosyal", "Teknolojideki Uyg. (2. Gün)", "Genel Tekrar", "Bitki Biyolojisi (5. Gün)"],
-        ["PKOB (4. Gün)", "12 Prob. + TYT Mat. Türkçe", "Fizik Genel Tekrar", "Genel Tekrar", "Biyoloji Genel Tekrar (1. Gün)"],
-        ["PKOB (5. Gün)", "Mat. Deneme + AYT Genel Tekrar", "Fizik Mini Branş Denemesi", "Genel Tekrar", "Biyoloji Genel Tekrar (2. Gün)"]
-    ];
 
     document.addEventListener("DOMContentLoaded", () => {
         const tbody = document.getElementById("table-body");
@@ -318,7 +289,6 @@
         let chartInstance = null;
         let currentTarget = 6;
         let currentStartDate = "2024-04-17";
-        let isBlankSchedule = false;
 
         let cacheTasks = {};
         let cacheNotes = {};
@@ -365,7 +335,7 @@
         };
 
         const getHoursFromText = (text) => {
-            if (!text) return 0; // HATA 5 ÇÖZÜMÜ: Varsayılan 2 yerine 0 
+            if (!text) return 0;
             const timeMatch = text.match(/(\d{1,2})[:\.](\d{2})\s*-\s*(\d{1,2})[:\.](\d{2})/);
             if (timeMatch) {
                 const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
@@ -379,7 +349,7 @@
                 const val = parseFloat(numMatch[0]);
                 if (!isNaN(val)) return val;
             }
-            return 0; // HATA 5 ÇÖZÜMÜ
+            return 0; 
         };
 
         const updateDashboard = (subjNames, dailyTotals, weeklyData) => {
@@ -406,7 +376,7 @@
                     responsive: true, maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true, title: { display: true, text: 'Saat' } } },
                     plugins: { legend: { position: 'top' } },
-                    animation: { duration: 0 } // Tema değişiminde anında render için
+                    animation: { duration: 0 }
                 }
             });
 
@@ -415,6 +385,13 @@
             weeklyData.forEach((week, i) => {
                 weeklyGrid.innerHTML += `<div class="week-item"><span class="w-title">${i+1}. Hafta</span><span class="w-val">${week.toFixed(1)} Saat</span></div>`;
             });
+        };
+
+        const toDateStr = (d) => {
+             const year = d.getFullYear();
+             const month = String(d.getMonth() + 1).padStart(2, '0');
+             const day = String(d.getDate()).padStart(2, '0');
+             return `${year}-${month}-${day}`;
         };
 
         const updateStats = () => {
@@ -428,7 +405,6 @@
             let weekSum = 0;
             
             let streakData = [];
-            const todayZero = new Date(); todayZero.setHours(0,0,0,0);
 
             rows.forEach((row, rowIndex) => {
                 let rowTotalHours = 0;
@@ -458,7 +434,7 @@
                 if((rowIndex + 1) % 7 === 0 || rowIndex === rows.length - 1) { weeklyData.push(weekSum); weekSum = 0; }
 
                 if (rowDate) {
-                    streakData.push({ date: rowDate.getTime(), hours: rowTotalHours });
+                    streakData.push({ date: toDateStr(rowDate), hours: rowTotalHours });
                 }
 
                 const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
@@ -470,26 +446,29 @@
                 }
             });
 
-            // HATA 4 ÇÖZÜMÜ: Kesin Ardışıklık Kontrolü (Streak Logic)
+            // Yeni ve Gelişmiş Streak (Seri) Mantığı
             let currentStreak = 0;
-            const todayZeroTime = todayZero.getTime();
-            let expectedDate = new Date(todayZeroTime);
-            
-            // Bugün çalışıldı mı kontrolü
-            const todayData = streakData.find(d => d.date === expectedDate.getTime());
+            let expectedDate = new Date(); 
+            let expectedStr = toDateStr(expectedDate);
+
+            // Bugün çalışıldı mı?
+            let todayData = streakData.find(d => d.date === expectedStr);
             if (todayData && todayData.hours > 0) {
                 currentStreak++;
             }
-            
-            // Geriye doğru ardışık gün taraması
+
+            // Geriye doğru (Dün ve öncesi) tarama
             expectedDate.setDate(expectedDate.getDate() - 1);
+            expectedStr = toDateStr(expectedDate);
+
             while(true) {
-                const dayData = streakData.find(d => d.date === expectedDate.getTime());
+                let dayData = streakData.find(d => d.date === expectedStr);
                 if (dayData && dayData.hours > 0) {
                     currentStreak++;
                     expectedDate.setDate(expectedDate.getDate() - 1);
+                    expectedStr = toDateStr(expectedDate);
                 } else {
-                    break; // Boşluk bulundu, seri sonlandı
+                    break;
                 }
             }
 
@@ -541,9 +520,8 @@
             const tr = document.createElement("tr");
             let html = `<td><div class="date-wrapper"><span class="date-cell" style="font-weight: 600;"></span><button class="btn-complete-day" title="Tüm Günü Tamamla/Temizle">✅</button></div></td>`;
             
-            const rowData = isBlankSchedule 
-                            ? ["", "", "", "", ""] 
-                            : (baseSchedule[rowIndex] || ["Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders"]);
+            // Tüm yeni satırlar tamamen boş başlayacak
+            const rowData = ["", "", "", "", ""];
 
             for (let i = 1; i < 6; i++) {
                 const taskId = `task-${rowIndex * 5 + (i - 1)}`;
@@ -578,7 +556,7 @@
                     if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) {
                         el.innerText = cacheCustomTexts[id];
                     } else if (!cacheCustomTexts[id] && document.activeElement !== el && id.startsWith('task-text')) {
-                         const expectedText = isBlankSchedule ? "" : (baseSchedule[rowIndex] ? baseSchedule[rowIndex][i] : "Yeni Ders");
+                         const expectedText = ""; // Boş başlatma
                          if(el.innerText !== expectedText) el.innerText = expectedText;
                     }
                 });
@@ -594,13 +572,11 @@
             updateStats();
         };
 
-        // HATA 6 ÇÖZÜMÜ: Performans için Debounce
         const debouncedApplyData = debounce(applyDataToUI, 150);
 
-        // HATA 1 & 7 ÇÖZÜMÜ: Firebase Anonymous Auth Entegrasyonu
+        // Anonim girişi yine yapıyoruz ama veriyi cihazlara ortak olan SHARED_PATH'ten alıyoruz
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                userUid = user.uid;
                 initAppWithUser();
             } else {
                 signInAnonymously(auth).catch(console.error);
@@ -608,12 +584,12 @@
         });
 
         function initAppWithUser() {
-            // Veri yolları artık kullanıcıya özel (users/{uid}/kamp/...)
-            userRootRef = ref(database, `users/${userUid}/kamp/`);
-            tasksRef = ref(database, `users/${userUid}/kamp/tasks/`);
-            notesRef = ref(database, `users/${userUid}/kamp/notes/`);
-            customTextRef = ref(database, `users/${userUid}/kamp/customTexts/`);
-            settingsRef = ref(database, `users/${userUid}/kamp/settings/`);
+            // Veri yolları artık kullanıcıya özel değil, herkes (senin tüm cihazların) ortak bir yola bağlanır
+            userRootRef = ref(database, SHARED_PATH);
+            tasksRef = ref(database, `${SHARED_PATH}tasks/`);
+            notesRef = ref(database, `${SHARED_PATH}notes/`);
+            customTextRef = ref(database, `${SHARED_PATH}customTexts/`);
+            settingsRef = ref(database, `${SHARED_PATH}settings/`);
 
             // Bağlantı durumu
             onValue(connectedRef, (snap) => {
@@ -627,7 +603,6 @@
                 const settings = snapshot.val() || {};
                 currentStartDate = settings.startDate || "2024-04-17";
                 currentTarget = settings.targetHours || 6;
-                isBlankSchedule = settings.isBlank || false;
                 const targetCount = settings.rowCount || 28;
 
                 document.getElementById("start-date-picker").value = currentStartDate;
@@ -665,26 +640,26 @@
             });
 
             // Ayar Event Listener'ları
-            document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, `users/${userUid}/kamp/settings/startDate`), e.target.value).catch(console.error); });
-            targetInput.addEventListener("change", (e) => { set(ref(database, `users/${userUid}/kamp/settings/targetHours`), Number(e.target.value)).catch(console.error); });
+            document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, `${SHARED_PATH}settings/startDate`), e.target.value).catch(console.error); });
+            targetInput.addEventListener("change", (e) => { set(ref(database, `${SHARED_PATH}settings/targetHours`), Number(e.target.value)).catch(console.error); });
 
-            document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, `users/${userUid}/kamp/settings/rowCount`), tbody.children.length + 1).catch(console.error); });
+            document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, `${SHARED_PATH}settings/rowCount`), tbody.children.length + 1).catch(console.error); });
             document.getElementById("del-row-btn").addEventListener("click", () => {
                 if (tbody.children.length <= 28) return alert("Asgari 28 günlük kamp planının altına düşülemez!");
-                if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, `users/${userUid}/kamp/settings/rowCount`), tbody.children.length - 1).catch(console.error);
+                if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, `${SHARED_PATH}settings/rowCount`), tbody.children.length - 1).catch(console.error);
             });
-        } // initAppWithUser sonu
+        } 
 
-        // Task Checkbox Tıklaması (Optimistic UI)
+        // Task Checkbox Tıklaması 
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 e.target.nextElementSibling.classList.toggle("completed-text", e.target.checked);
-                updateStats(); // HATA 3 ÇÖZÜMÜ: Anında UI Güncellemesi
-                set(ref(database, `users/${userUid}/kamp/tasks/` + e.target.id), e.target.checked).catch(console.error); 
+                updateStats(); 
+                set(ref(database, `${SHARED_PATH}tasks/` + e.target.id), e.target.checked).catch(console.error); 
             }
         });
 
-        // Toplu Gün Tamamlama (Optimistic UI)
+        // Toplu Gün Tamamlama 
         tbody.addEventListener("click", (e) => {
             if (e.target.classList.contains("btn-complete-day")) {
                 const tr = e.target.closest('tr');
@@ -693,7 +668,6 @@
                 let newState = !allChecked;
                 let updates = {};
                 
-                // HATA 3 ÇÖZÜMÜ: Anında UI Güncellemesi
                 rowTasks.forEach(box => { 
                     updates[box.id] = newState; 
                     box.checked = newState; 
@@ -708,10 +682,10 @@
             }
         });
 
-        const saveNote = debounce((id, value) => { set(ref(database, `users/${userUid}/kamp/notes/` + id), value).catch(console.error); }, 800);
+        const saveNote = debounce((id, value) => { set(ref(database, `${SHARED_PATH}notes/` + id), value).catch(console.error); }, 800);
         tbody.addEventListener("input", (e) => { if (e.target.classList.contains("note-input")) saveNote(e.target.id, e.target.value); });
 
-        const saveCustomText = debounce((id, text) => { set(ref(database, `users/${userUid}/kamp/customTexts/` + id), text).catch(console.error); }, 500);
+        const saveCustomText = debounce((id, text) => { set(ref(database, `${SHARED_PATH}customTexts/` + id), text).catch(console.error); }, 500);
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
@@ -749,7 +723,6 @@
             }
         });
 
-        // HATA 2 ÇÖZÜMÜ: Tema Toggle'da Chart Yenileme
         const currentTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", currentTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
@@ -767,11 +740,10 @@
                 btn.disabled = true;
                 
                 Promise.all([
-                    remove(ref(database, `users/${userUid}/kamp/tasks`)), 
-                    remove(ref(database, `users/${userUid}/kamp/notes`)), 
-                    remove(ref(database, `users/${userUid}/kamp/customTexts`)), 
-                    set(ref(database, `users/${userUid}/kamp/settings/isBlank`), true), 
-                    set(ref(database, `users/${userUid}/kamp/settings/rowCount`), 28)
+                    remove(ref(database, `${SHARED_PATH}tasks`)), 
+                    remove(ref(database, `${SHARED_PATH}notes`)), 
+                    remove(ref(database, `${SHARED_PATH}customTexts`)), 
+                    set(ref(database, `${SHARED_PATH}settings/rowCount`), 28)
                 ]).then(() => {
                     alert("Tüm veriler temizlendi. Karşında planlamanı bekleyen boş bir tablo var!");
                     window.location.reload(); 
@@ -817,7 +789,7 @@
 
         document.getElementById("export-btn").addEventListener("click", () => {
             settingsMenu.classList.remove('show-dropdown');
-            const backupData = { tasks: cacheTasks, notes: cacheNotes, customTexts: cacheCustomTexts, settings: { startDate: currentStartDate, rowCount: tbody.children.length, targetHours: currentTarget, isBlank: isBlankSchedule } };
+            const backupData = { tasks: cacheTasks, notes: cacheNotes, customTexts: cacheCustomTexts, settings: { startDate: currentStartDate, rowCount: tbody.children.length, targetHours: currentTarget } };
             const dataStr = JSON.stringify(backupData, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
