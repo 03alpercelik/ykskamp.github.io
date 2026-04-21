@@ -59,7 +59,6 @@
         .btn-edit { background: var(--edit-color); color: white; }
         .btn-edit.active { background: var(--accent); animation: pulse 2s infinite; }
         
-        /* Dropdown Stilleri */
         .dropdown { position: relative; display: inline-block; }
         .dropdown-content {
             display: none; position: absolute; right: 0; top: 110%;
@@ -185,7 +184,7 @@
             <input type="text" id="note-search" class="note-input search-input" placeholder="🔍 Notlarda ara..." aria-label="Arama">
         </div>
         <div class="controls-right">
-            <span id="connection-status" class="connection-status status-online">🟢 Bağlanıyor...</span>
+            <span id="connection-status" class="connection-status status-offline">🔴 Oturum Açılıyor...</span>
             <div class="dropdown">
                 <button class="btn btn-theme" id="settings-toggle" aria-haspopup="true" aria-expanded="false">⚙️ Ayarlar</button>
                 <div class="dropdown-content" id="settings-menu">
@@ -257,6 +256,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"; // Auth Eklendi
 
     const firebaseConfig = {
         apiKey: "AIzaSyCtlXFnB8OTQ-P_QKH2fAexX8UlLTRpXcg",
@@ -271,11 +271,10 @@
 
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
+    const auth = getAuth(app);
     
-    const tasksRef = ref(database, 'kamp/tasks/');
-    const notesRef = ref(database, 'kamp/notes/');
-    const customTextRef = ref(database, 'kamp/customTexts/'); 
-    const settingsRef = ref(database, 'kamp/settings/');
+    let userUid = null;
+    let tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
     const connectedRef = ref(database, '.info/connected');
 
     const baseSchedule = [
@@ -330,7 +329,6 @@
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const todayString = `${today.getDate()} ${months[today.getMonth()]} ${days[today.getDay()]}`;
 
-        // Ayarlar Dropdown Menü Kontrolü
         const settingsToggle = document.getElementById('settings-toggle');
         const settingsMenu = document.getElementById('settings-menu');
         
@@ -340,23 +338,16 @@
         });
 
         window.addEventListener('click', (e) => {
-            if (!e.target.matches('#settings-toggle')) {
-                if (settingsMenu.classList.contains('show-dropdown')) {
-                    settingsMenu.classList.remove('show-dropdown');
-                }
+            if (!e.target.matches('#settings-toggle') && settingsMenu.classList.contains('show-dropdown')) {
+                settingsMenu.classList.remove('show-dropdown');
             }
         });
 
-        // YKS Geri Sayım
         const updateCountdown = () => {
             const now = new Date();
             let currentYear = now.getFullYear();
             let yksDateObj = new Date(currentYear, 5, 20, 10, 15, 0); 
-            
-            if(now.getTime() > yksDateObj.getTime()) {
-                yksDateObj = new Date(currentYear + 1, 5, 20, 10, 15, 0);
-            }
-            
+            if(now.getTime() > yksDateObj.getTime()) yksDateObj = new Date(currentYear + 1, 5, 20, 10, 15, 0);
             const distance = yksDateObj.getTime() - now.getTime();
             if(distance < 0) {
                 document.getElementById('yks-countdown').innerText = "YKS Tamamlandı!";
@@ -374,7 +365,7 @@
         };
 
         const getHoursFromText = (text) => {
-            if (!text) return 0;
+            if (!text) return 0; // HATA 5 ÇÖZÜMÜ: Varsayılan 2 yerine 0 
             const timeMatch = text.match(/(\d{1,2})[:\.](\d{2})\s*-\s*(\d{1,2})[:\.](\d{2})/);
             if (timeMatch) {
                 const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
@@ -388,7 +379,7 @@
                 const val = parseFloat(numMatch[0]);
                 if (!isNaN(val)) return val;
             }
-            return 2; 
+            return 0; // HATA 5 ÇÖZÜMÜ
         };
 
         const updateDashboard = (subjNames, dailyTotals, weeklyData) => {
@@ -414,7 +405,8 @@
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     scales: { y: { beginAtZero: true, title: { display: true, text: 'Saat' } } },
-                    plugins: { legend: { position: 'top' } }
+                    plugins: { legend: { position: 'top' } },
+                    animation: { duration: 0 } // Tema değişiminde anında render için
                 }
             });
 
@@ -478,28 +470,26 @@
                 }
             });
 
-            // --- YENİ STREAK (SERİ) MANTIĞI ---
-            // Bugünden geriye dönük sağlam bir streak hesaplaması
+            // HATA 4 ÇÖZÜMÜ: Kesin Ardışıklık Kontrolü (Streak Logic)
             let currentStreak = 0;
             const todayZeroTime = todayZero.getTime();
+            let expectedDate = new Date(todayZeroTime);
             
-            // Bugün ve geçmiş günleri alıp yeniden eskiye doğru (azalan) sıralıyoruz
-            const pastAndToday = streakData.filter(d => d.date <= todayZeroTime).sort((a,b) => b.date - a.date);
+            // Bugün çalışıldı mı kontrolü
+            const todayData = streakData.find(d => d.date === expectedDate.getTime());
+            if (todayData && todayData.hours > 0) {
+                currentStreak++;
+            }
             
-            for (let i = 0; i < pastAndToday.length; i++) {
-                const day = pastAndToday[i];
-                if (day.date === todayZeroTime) {
-                    // Eğer bugün çalışılmışsa seriye ekle
-                    if (day.hours > 0) currentStreak++;
-                    // Bugün henüz çalışılmamışsa döngüyü bozma, çünkü gün bitmedi. Düne bakmaya devam et.
+            // Geriye doğru ardışık gün taraması
+            expectedDate.setDate(expectedDate.getDate() - 1);
+            while(true) {
+                const dayData = streakData.find(d => d.date === expectedDate.getTime());
+                if (dayData && dayData.hours > 0) {
+                    currentStreak++;
+                    expectedDate.setDate(expectedDate.getDate() - 1);
                 } else {
-                    // Geçmiş bir gün (Dün, ondan önceki gün vs.)
-                    if (day.hours > 0) {
-                        currentStreak++;
-                    } else {
-                        // Eğer geçmiş bir günde 0 saat çalışılmışsa seri KESİNLİKLE bozulur.
-                        break; 
-                    }
+                    break; // Boşluk bulundu, seri sonlandı
                 }
             }
 
@@ -604,66 +594,97 @@
             updateStats();
         };
 
-        // Firebase Listeners
-        onValue(connectedRef, (snap) => {
-            const cs = document.getElementById("connection-status");
-            if (snap.val() === true) { cs.innerHTML = "🟢 Bağlı"; cs.className = "connection-status status-online"; } 
-            else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
-        });
+        // HATA 6 ÇÖZÜMÜ: Performans için Debounce
+        const debouncedApplyData = debounce(applyDataToUI, 150);
 
-        onValue(settingsRef, (snapshot) => {
-            const settings = snapshot.val() || {};
-            currentStartDate = settings.startDate || "2024-04-17";
-            currentTarget = settings.targetHours || 6;
-            isBlankSchedule = settings.isBlank || false;
-            const targetCount = settings.rowCount || 28;
-
-            document.getElementById("start-date-picker").value = currentStartDate;
-            targetInput.value = currentTarget;
-
-            const currentCount = tbody.children.length;
-            if (targetCount > currentCount) { 
-                for (let i = currentCount; i < targetCount; i++) addRowToDOM(i); 
-            } else if (targetCount < currentCount) { 
-                const tasksUpdate = {}; const notesUpdate = {}; const customUpdate = {};
-                for (let i = targetCount; i < currentCount; i++) {
-                    for (let j = 0; j < 5; j++) tasksUpdate[`task-${i * 5 + j}`] = null;
-                    notesUpdate[`note-${i + 1}`] = null;
-                    for (let j = 1; j <= 5; j++) customUpdate[`task-text-${i}-${j}`] = null;
-                }
-                if (Object.keys(tasksUpdate).length) update(tasksRef, tasksUpdate).catch(console.error);
-                if (Object.keys(notesUpdate).length) update(notesRef, notesUpdate).catch(console.error);
-                if (Object.keys(customUpdate).length) update(customTextRef, customUpdate).catch(console.error);
-                
-                for (let i = currentCount; i > targetCount; i--) { if (tbody.lastChild) tbody.removeChild(tbody.lastChild); } 
+        // HATA 1 & 7 ÇÖZÜMÜ: Firebase Anonymous Auth Entegrasyonu
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userUid = user.uid;
+                initAppWithUser();
+            } else {
+                signInAnonymously(auth).catch(console.error);
             }
-            updateDatesInTable(); applyDataToUI();
         });
 
-        document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, 'kamp/settings/startDate'), e.target.value).catch(console.error); });
-        targetInput.addEventListener("change", (e) => { set(ref(database, 'kamp/settings/targetHours'), Number(e.target.value)).catch(console.error); });
+        function initAppWithUser() {
+            // Veri yolları artık kullanıcıya özel (users/{uid}/kamp/...)
+            userRootRef = ref(database, `users/${userUid}/kamp/`);
+            tasksRef = ref(database, `users/${userUid}/kamp/tasks/`);
+            notesRef = ref(database, `users/${userUid}/kamp/notes/`);
+            customTextRef = ref(database, `users/${userUid}/kamp/customTexts/`);
+            settingsRef = ref(database, `users/${userUid}/kamp/settings/`);
 
-        document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, 'kamp/settings/rowCount'), tbody.children.length + 1).catch(console.error); });
-        document.getElementById("del-row-btn").addEventListener("click", () => {
-            if (tbody.children.length <= 28) return alert("Asgari 28 günlük kamp planının altına düşülemez!");
-            if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, 'kamp/settings/rowCount'), tbody.children.length - 1).catch(console.error);
-        });
-
-        onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; applyDataToUI(); });
-        onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; applyDataToUI(); });
-        onValue(customTextRef, (snapshot) => { 
-            cacheCustomTexts = snapshot.val() || {}; 
-            document.querySelectorAll('thead .editable-text').forEach(el => {
-                const id = el.getAttribute('data-edit-id');
-                if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
+            // Bağlantı durumu
+            onValue(connectedRef, (snap) => {
+                const cs = document.getElementById("connection-status");
+                if (snap.val() === true) { cs.innerHTML = "🟢 Bağlı"; cs.className = "connection-status status-online"; } 
+                else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
             });
-            applyDataToUI(); 
-        });
 
+            // Ayarlar ve Tablo Oluşturma
+            onValue(settingsRef, (snapshot) => {
+                const settings = snapshot.val() || {};
+                currentStartDate = settings.startDate || "2024-04-17";
+                currentTarget = settings.targetHours || 6;
+                isBlankSchedule = settings.isBlank || false;
+                const targetCount = settings.rowCount || 28;
+
+                document.getElementById("start-date-picker").value = currentStartDate;
+                targetInput.value = currentTarget;
+
+                const currentCount = tbody.children.length;
+                if (targetCount > currentCount) { 
+                    for (let i = currentCount; i < targetCount; i++) addRowToDOM(i); 
+                } else if (targetCount < currentCount) { 
+                    const tasksUpdate = {}; const notesUpdate = {}; const customUpdate = {};
+                    for (let i = targetCount; i < currentCount; i++) {
+                        for (let j = 0; j < 5; j++) tasksUpdate[`task-${i * 5 + j}`] = null;
+                        notesUpdate[`note-${i + 1}`] = null;
+                        for (let j = 1; j <= 5; j++) customUpdate[`task-text-${i}-${j}`] = null;
+                    }
+                    if (Object.keys(tasksUpdate).length) update(tasksRef, tasksUpdate).catch(console.error);
+                    if (Object.keys(notesUpdate).length) update(notesRef, notesUpdate).catch(console.error);
+                    if (Object.keys(customUpdate).length) update(customTextRef, customUpdate).catch(console.error);
+                    
+                    for (let i = currentCount; i > targetCount; i--) { if (tbody.lastChild) tbody.removeChild(tbody.lastChild); } 
+                }
+                updateDatesInTable(); debouncedApplyData();
+            });
+
+            // Firebase Dinleyicileri
+            onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; debouncedApplyData(); });
+            onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; debouncedApplyData(); });
+            onValue(customTextRef, (snapshot) => { 
+                cacheCustomTexts = snapshot.val() || {}; 
+                document.querySelectorAll('thead .editable-text').forEach(el => {
+                    const id = el.getAttribute('data-edit-id');
+                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
+                });
+                debouncedApplyData(); 
+            });
+
+            // Ayar Event Listener'ları
+            document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, `users/${userUid}/kamp/settings/startDate`), e.target.value).catch(console.error); });
+            targetInput.addEventListener("change", (e) => { set(ref(database, `users/${userUid}/kamp/settings/targetHours`), Number(e.target.value)).catch(console.error); });
+
+            document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, `users/${userUid}/kamp/settings/rowCount`), tbody.children.length + 1).catch(console.error); });
+            document.getElementById("del-row-btn").addEventListener("click", () => {
+                if (tbody.children.length <= 28) return alert("Asgari 28 günlük kamp planının altına düşülemez!");
+                if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, `users/${userUid}/kamp/settings/rowCount`), tbody.children.length - 1).catch(console.error);
+            });
+        } // initAppWithUser sonu
+
+        // Task Checkbox Tıklaması (Optimistic UI)
         tbody.addEventListener("change", (e) => {
-            if (e.target.classList.contains("task-checkbox")) { set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked).catch(console.error); updateStats(); }
+            if (e.target.classList.contains("task-checkbox")) { 
+                e.target.nextElementSibling.classList.toggle("completed-text", e.target.checked);
+                updateStats(); // HATA 3 ÇÖZÜMÜ: Anında UI Güncellemesi
+                set(ref(database, `users/${userUid}/kamp/tasks/` + e.target.id), e.target.checked).catch(console.error); 
+            }
         });
 
+        // Toplu Gün Tamamlama (Optimistic UI)
         tbody.addEventListener("click", (e) => {
             if (e.target.classList.contains("btn-complete-day")) {
                 const tr = e.target.closest('tr');
@@ -672,10 +693,13 @@
                 let newState = !allChecked;
                 let updates = {};
                 
+                // HATA 3 ÇÖZÜMÜ: Anında UI Güncellemesi
                 rowTasks.forEach(box => { 
                     updates[box.id] = newState; 
                     box.checked = newState; 
+                    box.nextElementSibling?.classList.toggle("completed-text", newState);
                 });
+                updateStats();
                 
                 update(tasksRef, updates).catch(err => {
                     console.error(err);
@@ -684,10 +708,10 @@
             }
         });
 
-        const saveNote = debounce((id, value) => { set(ref(database, 'kamp/notes/' + id), value).catch(console.error); }, 800);
+        const saveNote = debounce((id, value) => { set(ref(database, `users/${userUid}/kamp/notes/` + id), value).catch(console.error); }, 800);
         tbody.addEventListener("input", (e) => { if (e.target.classList.contains("note-input")) saveNote(e.target.id, e.target.value); });
 
-        const saveCustomText = debounce((id, text) => { set(ref(database, 'kamp/customTexts/' + id), text).catch(console.error); }, 500);
+        const saveCustomText = debounce((id, text) => { set(ref(database, `users/${userUid}/kamp/customTexts/` + id), text).catch(console.error); }, 500);
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
@@ -701,11 +725,8 @@
             const rows = document.querySelectorAll("#table-body tr");
             rows.forEach((row) => {
                 const noteInput = row.querySelector('.note-input');
-                if(term === "" || (noteInput && noteInput.value.toLowerCase().includes(term))) { 
-                    row.style.display = ""; 
-                } else { 
-                    row.style.display = "none"; 
-                }
+                if(term === "" || (noteInput && noteInput.value.toLowerCase().includes(term))) { row.style.display = ""; } 
+                else { row.style.display = "none"; }
             });
         });
 
@@ -728,27 +749,29 @@
             }
         });
 
+        // HATA 2 ÇÖZÜMÜ: Tema Toggle'da Chart Yenileme
         const currentTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", currentTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
             const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", theme);
             localStorage.setItem("theme", theme);
+            updateStats(); 
         });
 
         document.getElementById("reset-btn").addEventListener("click", () => {
-            settingsMenu.classList.remove('show-dropdown'); // Menüyü kapat
+            settingsMenu.classList.remove('show-dropdown'); 
             if (confirm("🚨 DİKKAT! Tüm ilerleme, notlar ve kamp programı SİLİNECEK.\nSadece boş bir planlama tablosu kalacak.\n\nDevam etmek istiyor musun?")) {
                 const btn = document.getElementById("reset-btn");
                 btn.innerHTML = "⏳ Siliniyor..."; 
                 btn.disabled = true;
                 
                 Promise.all([
-                    remove(ref(database, 'kamp/tasks')), 
-                    remove(ref(database, 'kamp/notes')), 
-                    remove(ref(database, 'kamp/customTexts')), 
-                    set(ref(database, 'kamp/settings/isBlank'), true), 
-                    set(ref(database, 'kamp/settings/rowCount'), 28)
+                    remove(ref(database, `users/${userUid}/kamp/tasks`)), 
+                    remove(ref(database, `users/${userUid}/kamp/notes`)), 
+                    remove(ref(database, `users/${userUid}/kamp/customTexts`)), 
+                    set(ref(database, `users/${userUid}/kamp/settings/isBlank`), true), 
+                    set(ref(database, `users/${userUid}/kamp/settings/rowCount`), 28)
                 ]).then(() => {
                     alert("Tüm veriler temizlendi. Karşında planlamanı bekleyen boş bir tablo var!");
                     window.location.reload(); 
@@ -779,7 +802,7 @@
                         return alert('Geçersiz yedek dosyası (Beklenen kamp verileri eksik).');
                     }
                     if(confirm("Yedek yükleniyor. Mevcut online verilerin tamamen SİLİNİP bu dosyadakilerle DEĞİŞTİRİLECEK.\n\nEmin misin?")) {
-                        set(ref(database, 'kamp/'), data).then(() => { 
+                        set(userRootRef, data).then(() => { 
                             alert("Yedek başarıyla yüklendi!"); 
                             window.location.reload(); 
                         }).catch(err => {
@@ -830,13 +853,9 @@
                     });
 
                     if(todayTotalHours < currentTarget) {
-                        new Notification("Kamp Takip Pro Hatırlatıcı", { 
-                            body: `Günün bitmesine az kaldı! Bugün ${todayTotalHours} saat çalıştın. Hedefin ise ${currentTarget} saat. Haydi masaya!` 
-                        });
+                        new Notification("Kamp Takip Pro Hatırlatıcı", { body: `Günün bitmesine az kaldı! Bugün ${todayTotalHours} saat çalıştın. Hedefin ise ${currentTarget} saat. Haydi masaya!` });
                     } else {
-                        new Notification("Kamp Takip Pro Tebrikler!", { 
-                            body: `Bugünkü ${currentTarget} saatlik hedefine ulaştın. Harika bir iş çıkardın!` 
-                        });
+                        new Notification("Kamp Takip Pro Tebrikler!", { body: `Bugünkü ${currentTarget} saatlik hedefine ulaştın. Harika bir iş çıkardın!` });
                     }
                 }
             }
