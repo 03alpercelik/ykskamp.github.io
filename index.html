@@ -273,8 +273,9 @@
     const database = getDatabase(app);
     const auth = getAuth(app);
     
-    // Her cihazın bağlanacağı ortak veri yolu (Cross-device sync için)
+    // Temel yol ve kullanıcı bazlı dinamik yol
     const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
+    let USER_PATH = "";
     
     let tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
     const connectedRef = ref(database, '.info/connected');
@@ -416,16 +417,20 @@
                 rowTasks.forEach((box, taskIndex) => {
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${taskIndex + 1}"]`);
                     const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
-                    const hrs = getHoursFromText(timeStr);
+                    const currentHeaderHrs = getHoursFromText(timeStr);
+                    
                     subjTotals[taskIndex]++;
                     
                     if (box.checked) {
+                        const taskData = cacheTasks[box.id];
+                        const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
+
                         rowTotalHours += hrs;
                         completedHours += hrs;
                         subjStats[taskIndex]++;
                         daySubjHours[taskIndex] = hrs;
                     } else {
-                        remainingHours += hrs;
+                        remainingHours += currentHeaderHrs;
                     }
                 });
                 
@@ -545,7 +550,9 @@
             rows.forEach((row, rowIndex) => {
                 row.querySelectorAll(".task-checkbox").forEach(box => {
                     const textSpan = box.nextElementSibling;
-                    const isChecked = cacheTasks[box.id] === true;
+                    const taskData = cacheTasks[box.id];
+                    const isChecked = taskData && taskData.done === true;
+                    
                     box.checked = isChecked;
                     if (isChecked) { textSpan.classList.add("completed-text"); globalCheckedCount++; } 
                     else { textSpan.classList.remove("completed-text"); }
@@ -574,7 +581,6 @@
 
         const debouncedApplyData = debounce(applyDataToUI, 150);
 
-        // Anonim girişi yine yapıyoruz ama veriyi cihazlara ortak olan SHARED_PATH'ten alıyoruz
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 initAppWithUser();
@@ -584,12 +590,14 @@
         });
 
         function initAppWithUser() {
-            // Veri yolları artık kullanıcıya özel değil, herkes (senin tüm cihazların) ortak bir yola bağlanır
-            userRootRef = ref(database, SHARED_PATH);
-            tasksRef = ref(database, `${SHARED_PATH}tasks/`);
-            notesRef = ref(database, `${SHARED_PATH}notes/`);
-            customTextRef = ref(database, `${SHARED_PATH}customTexts/`);
-            settingsRef = ref(database, `${SHARED_PATH}settings/`);
+            // Veri yolları artık kullanıcıya özel (auth.uid kullanılarak) izole ediliyor
+            USER_PATH = `${SHARED_PATH}${auth.currentUser.uid}/`;
+
+            userRootRef = ref(database, USER_PATH);
+            tasksRef = ref(database, `${USER_PATH}tasks/`);
+            notesRef = ref(database, `${USER_PATH}notes/`);
+            customTextRef = ref(database, `${USER_PATH}customTexts/`);
+            settingsRef = ref(database, `${USER_PATH}settings/`);
 
             // Bağlantı durumu
             onValue(connectedRef, (snap) => {
@@ -639,27 +647,47 @@
                 debouncedApplyData(); 
             });
 
-            // Ayar Event Listener'ları
-            document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, `${SHARED_PATH}settings/startDate`), e.target.value).catch(console.error); });
-            targetInput.addEventListener("change", (e) => { set(ref(database, `${SHARED_PATH}settings/targetHours`), Number(e.target.value)).catch(console.error); });
+            // Ayar Event Listener'ları (Artık USER_PATH kullanıyor)
+            document.getElementById("start-date-picker").addEventListener("change", (e) => { set(ref(database, `${USER_PATH}settings/startDate`), e.target.value).catch(console.error); });
+            targetInput.addEventListener("change", (e) => { set(ref(database, `${USER_PATH}settings/targetHours`), Number(e.target.value)).catch(console.error); });
 
-            document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, `${SHARED_PATH}settings/rowCount`), tbody.children.length + 1).catch(console.error); });
+            document.getElementById("add-row-btn").addEventListener("click", () => { set(ref(database, `${USER_PATH}settings/rowCount`), tbody.children.length + 1).catch(console.error); });
             document.getElementById("del-row-btn").addEventListener("click", () => {
                 if (tbody.children.length <= 28) return alert("Asgari 28 günlük kamp planının altına düşülemez!");
-                if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, `${SHARED_PATH}settings/rowCount`), tbody.children.length - 1).catch(console.error);
+                if(confirm("Son satırı silmek istediğinize emin misiniz? (Veriler tamamen silinecek)")) set(ref(database, `${USER_PATH}settings/rowCount`), tbody.children.length - 1).catch(console.error);
             });
         } 
 
-        // Task Checkbox Tıklaması 
+        // Task Checkbox Tıklaması (Geliştirilmiş - Obje tabanlı)
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
-                e.target.nextElementSibling.classList.toggle("completed-text", e.target.checked);
+                const isChecked = e.target.checked;
+                e.target.nextElementSibling.classList.toggle("completed-text", isChecked);
+                
+                const taskId = e.target.id;
+                let taskData = null;
+
+                if (isChecked) {
+                    const absoluteIndex = parseInt(taskId.split('-')[1]);
+                    const colIndex = absoluteIndex % 5;
+                    
+                    const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex + 1}"]`);
+                    const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
+                    const hours = getHoursFromText(timeStr);
+
+                    taskData = {
+                        done: true,
+                        hours: hours,
+                        updatedAt: Date.now()
+                    };
+                }
+                
                 updateStats(); 
-                set(ref(database, `${SHARED_PATH}tasks/` + e.target.id), e.target.checked).catch(console.error); 
+                set(ref(database, `${USER_PATH}tasks/` + taskId), taskData).catch(console.error); 
             }
         });
 
-        // Toplu Gün Tamamlama 
+        // Toplu Gün Tamamlama (Geliştirilmiş - Obje tabanlı)
         tbody.addEventListener("click", (e) => {
             if (e.target.classList.contains("btn-complete-day")) {
                 const tr = e.target.closest('tr');
@@ -667,14 +695,31 @@
                 let allChecked = Array.from(rowTasks).every(box => box.checked);
                 let newState = !allChecked;
                 let updates = {};
+                const now = Date.now();
                 
                 rowTasks.forEach(box => { 
-                    updates[box.id] = newState; 
+                    const absoluteIndex = parseInt(box.id.split('-')[1]);
+                    const colIndex = absoluteIndex % 5;
+
+                    if (newState) {
+                        const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex + 1}"]`);
+                        const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
+                        const hours = getHoursFromText(timeStr);
+
+                        updates[box.id] = {
+                            done: true,
+                            hours: hours,
+                            updatedAt: now
+                        };
+                    } else {
+                        updates[box.id] = null;
+                    }
+                    
                     box.checked = newState; 
                     box.nextElementSibling?.classList.toggle("completed-text", newState);
                 });
-                updateStats();
                 
+                updateStats();
                 update(tasksRef, updates).catch(err => {
                     console.error(err);
                     alert("Günü tamamlarken veritabanı hatası oluştu!");
@@ -682,10 +727,10 @@
             }
         });
 
-        const saveNote = debounce((id, value) => { set(ref(database, `${SHARED_PATH}notes/` + id), value).catch(console.error); }, 800);
+        const saveNote = debounce((id, value) => { set(ref(database, `${USER_PATH}notes/` + id), value).catch(console.error); }, 800);
         tbody.addEventListener("input", (e) => { if (e.target.classList.contains("note-input")) saveNote(e.target.id, e.target.value); });
 
-        const saveCustomText = debounce((id, text) => { set(ref(database, `${SHARED_PATH}customTexts/` + id), text).catch(console.error); }, 500);
+        const saveCustomText = debounce((id, text) => { set(ref(database, `${USER_PATH}customTexts/` + id), text).catch(console.error); }, 500);
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
@@ -740,10 +785,10 @@
                 btn.disabled = true;
                 
                 Promise.all([
-                    remove(ref(database, `${SHARED_PATH}tasks`)), 
-                    remove(ref(database, `${SHARED_PATH}notes`)), 
-                    remove(ref(database, `${SHARED_PATH}customTexts`)), 
-                    set(ref(database, `${SHARED_PATH}settings/rowCount`), 28)
+                    remove(ref(database, `${USER_PATH}tasks`)), 
+                    remove(ref(database, `${USER_PATH}notes`)), 
+                    remove(ref(database, `${USER_PATH}customTexts`)), 
+                    set(ref(database, `${USER_PATH}settings/rowCount`), 28)
                 ]).then(() => {
                     alert("Tüm veriler temizlendi. Karşında planlamanı bekleyen boş bir tablo var!");
                     window.location.reload(); 
@@ -772,6 +817,9 @@
                     const data = JSON.parse(ev.target.result);
                     if (!data || typeof data !== 'object' || (!data.tasks && !data.notes && !data.customTexts && !data.settings)) {
                         return alert('Geçersiz yedek dosyası (Beklenen kamp verileri eksik).');
+                    }
+                    if(!userRootRef) {
+                        return alert('Henüz oturum açılmadı, lütfen bekleyin.');
                     }
                     if(confirm("Yedek yükleniyor. Mevcut online verilerin tamamen SİLİNİP bu dosyadakilerle DEĞİŞTİRİLECEK.\n\nEmin misin?")) {
                         set(userRootRef, data).then(() => { 
