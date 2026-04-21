@@ -25,6 +25,7 @@
             --danger-color: #ff7675;
             --stat-bg: #e0f2f1;
             --past-day-bg: #e2e8f0;
+            --dropdown-hover: #f1f2f6;
         }
 
         [data-theme="dark"] {
@@ -42,6 +43,7 @@
             --danger-color: #ef4444;
             --stat-bg: #064e3b;
             --past-day-bg: #162032;
+            --dropdown-hover: #334155;
         }
 
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; }
@@ -54,11 +56,27 @@
         .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
         .btn:active { transform: scale(0.95); }
         .btn-theme { background: #636e72; color: white; }
-        .btn-reset { background: var(--danger-color); color: white; }
         .btn-edit { background: var(--edit-color); color: white; }
-        .btn-export { background: #00cec9; color: white; }
-        .btn-import { background: #fdcb6e; color: #2d3436; }
         .btn-edit.active { background: var(--accent); animation: pulse 2s infinite; }
+        
+        /* Dropdown Stilleri */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content {
+            display: none; position: absolute; right: 0; top: 110%;
+            background-color: var(--card-bg); min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            border-radius: 8px; z-index: 1000;
+            border: 1px solid var(--table-border); overflow: hidden;
+        }
+        .dropdown-content .drop-item {
+            width: 100%; text-align: left; border-radius: 0; border: none;
+            padding: 12px 16px; background: transparent; color: var(--text-color);
+            font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .dropdown-content .drop-item:hover { background-color: var(--dropdown-hover); }
+        .dropdown-content .danger-item { color: var(--danger-color); }
+        .show-dropdown { display: block; }
         
         .row-controls { display: flex; gap: 10px; width: 100%; max-width: 1300px; margin-top: 15px; }
         .btn-add-row { background: var(--accent); color: white; flex: 1; justify-content: center; padding: 12px; font-size: 14px; }
@@ -167,12 +185,17 @@
             <input type="text" id="note-search" class="note-input search-input" placeholder="🔍 Notlarda ara..." aria-label="Arama">
         </div>
         <div class="controls-right">
-            <button class="btn btn-theme" id="notify-btn" title="Günlük Hatırlatıcı Aç/Kapat">🔔 Bildirim</button>
-            <button class="btn btn-export" id="export-btn">📥 İndir</button>
-            <button class="btn btn-import" id="import-trigger-btn">📤 Yükle</button>
-            <input type="file" id="import-file" style="display:none" accept=".json">
             <span id="connection-status" class="connection-status status-online">🟢 Bağlanıyor...</span>
-            <button class="btn btn-reset" id="reset-btn" title="Boş bir planlama tablosuna dönmek için sıfırla">🗑️ Sıfırla</button>
+            <div class="dropdown">
+                <button class="btn btn-theme" id="settings-toggle" aria-haspopup="true" aria-expanded="false">⚙️ Ayarlar</button>
+                <div class="dropdown-content" id="settings-menu">
+                    <button class="drop-item" id="notify-btn">🔔 Bildirimleri Aç</button>
+                    <button class="drop-item" id="export-btn">📥 Yedeği İndir</button>
+                    <button class="drop-item" id="import-trigger-btn">📤 Yedek Yükle</button>
+                    <button class="drop-item danger-item" id="reset-btn">🗑️ Tabloyu Sıfırla</button>
+                </div>
+            </div>
+            <input type="file" id="import-file" style="display:none" accept=".json">
         </div>
     </div>
     <div class="progress-wrapper">
@@ -296,7 +319,7 @@
         let chartInstance = null;
         let currentTarget = 6;
         let currentStartDate = "2024-04-17";
-        let isBlankSchedule = false; // "Sıfırla" sonrası boş tablo için
+        let isBlankSchedule = false;
 
         let cacheTasks = {};
         let cacheNotes = {};
@@ -307,13 +330,29 @@
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const todayString = `${today.getDate()} ${months[today.getMonth()]} ${days[today.getDay()]}`;
 
-        // YKS Geri Sayım (Sabit: Her Yılın 20 Haziran'ı)
+        // Ayarlar Dropdown Menü Kontrolü
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsMenu = document.getElementById('settings-menu');
+        
+        settingsToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsMenu.classList.toggle('show-dropdown');
+        });
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.matches('#settings-toggle')) {
+                if (settingsMenu.classList.contains('show-dropdown')) {
+                    settingsMenu.classList.remove('show-dropdown');
+                }
+            }
+        });
+
+        // YKS Geri Sayım
         const updateCountdown = () => {
             const now = new Date();
             let currentYear = now.getFullYear();
-            let yksDateObj = new Date(currentYear, 5, 20, 10, 15, 0); // Ay indexi 5 = Haziran
+            let yksDateObj = new Date(currentYear, 5, 20, 10, 15, 0); 
             
-            // Eğer bulunduğumuz yılın YKS'si geçtiyse, bir sonraki yıla ayarla
             if(now.getTime() > yksDateObj.getTime()) {
                 yksDateObj = new Date(currentYear + 1, 5, 20, 10, 15, 0);
             }
@@ -391,12 +430,12 @@
             let completedHours = 0, remainingHours = 0;
             let subjStats = [0, 0, 0, 0, 0];
             let subjTotals = [0, 0, 0, 0, 0];
-            let currentStreak = 0, maxStreak = 0;
             
             const dailyTotals = [];
             const weeklyData = [];
             let weekSum = 0;
-
+            
+            let streakData = [];
             const todayZero = new Date(); todayZero.setHours(0,0,0,0);
 
             rows.forEach((row, rowIndex) => {
@@ -426,24 +465,8 @@
                 weekSum += rowTotalHours;
                 if((rowIndex + 1) % 7 === 0 || rowIndex === rows.length - 1) { weeklyData.push(weekSum); weekSum = 0; }
 
-                // STREAK MANTIĞI (DÜZELTİLDİ)
                 if (rowDate) {
-                    if (rowDate < todayZero) {
-                        // Tamamlanmış (Geçmiş) Günler
-                        if (rowTotalHours > 0) {
-                            currentStreak++;
-                            if(currentStreak > maxStreak) maxStreak = currentStreak;
-                        } else {
-                            currentStreak = 0; // Geçmişte 0 saat varsa seri kesinlikle bozulur
-                        }
-                    } else if (rowDate.getTime() === todayZero.getTime()) {
-                        // Bugün (Gün henüz bitmedi)
-                        if (rowTotalHours > 0) {
-                            currentStreak++; // Bugün çalıştıysa seriye ekle
-                            if(currentStreak > maxStreak) maxStreak = currentStreak;
-                        }
-                        // Bugün çalışmadıysa (0 ise) SERİYİ BOZMA, yarını veya günün sonunu bekle.
-                    }
+                    streakData.push({ date: rowDate.getTime(), hours: rowTotalHours });
                 }
 
                 const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
@@ -455,13 +478,38 @@
                 }
             });
 
+            // --- YENİ STREAK (SERİ) MANTIĞI ---
+            // Bugünden geriye dönük sağlam bir streak hesaplaması
+            let currentStreak = 0;
+            const todayZeroTime = todayZero.getTime();
+            
+            // Bugün ve geçmiş günleri alıp yeniden eskiye doğru (azalan) sıralıyoruz
+            const pastAndToday = streakData.filter(d => d.date <= todayZeroTime).sort((a,b) => b.date - a.date);
+            
+            for (let i = 0; i < pastAndToday.length; i++) {
+                const day = pastAndToday[i];
+                if (day.date === todayZeroTime) {
+                    // Eğer bugün çalışılmışsa seriye ekle
+                    if (day.hours > 0) currentStreak++;
+                    // Bugün henüz çalışılmamışsa döngüyü bozma, çünkü gün bitmedi. Düne bakmaya devam et.
+                } else {
+                    // Geçmiş bir gün (Dün, ondan önceki gün vs.)
+                    if (day.hours > 0) {
+                        currentStreak++;
+                    } else {
+                        // Eğer geçmiş bir günde 0 saat çalışılmışsa seri KESİNLİKLE bozulur.
+                        break; 
+                    }
+                }
+            }
+
             const subjNames = [];
             for(let i=1; i<=5; i++) {
                 const el = document.getElementById(`th-subj-${i}-text`);
                 subjNames.push(el ? el.innerText.split(' ')[0] : `Ders ${i}`);
             }
 
-            let statsHtml = `<div class="stat-badge stat-hours" title="Çalışılan / Kalan Toplam Saat">⏱️ <span>${completedHours.toFixed(1)}s</span> / <span>${remainingHours.toFixed(1)}s</span></div><div class="stat-badge streak-badge" title="Üst Üste Çalışma Serisi">🔥 Streak: ${currentStreak} Gün</div>`;
+            let statsHtml = `<div class="stat-badge stat-hours" title="Çalışılan / Kalan Toplam Saat">⏱️ <span>${completedHours.toFixed(1)}s</span> / <span>${remainingHours.toFixed(1)}s</span></div><div class="stat-badge streak-badge" title="Mevcut Kesintisiz Çalışma Serisi">🔥 Streak: ${currentStreak} Gün</div>`;
             for(let i=0; i<5; i++) {
                 const pct = subjTotals[i] === 0 ? 0 : Math.round((subjStats[i] / subjTotals[i]) * 100);
                 statsHtml += `<div class="stat-badge">${subjNames[i]}: <span>%${pct}</span></div>`;
@@ -503,7 +551,6 @@
             const tr = document.createElement("tr");
             let html = `<td><div class="date-wrapper"><span class="date-cell" style="font-weight: 600;"></span><button class="btn-complete-day" title="Tüm Günü Tamamla/Temizle">✅</button></div></td>`;
             
-            // Eğer "Sıfırla" yapıldıysa boş hücre aç, aksi halde Base Schedule'ı yükle
             const rowData = isBlankSchedule 
                             ? ["", "", "", "", ""] 
                             : (baseSchedule[rowIndex] || ["Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders", "Yeni Ders"]);
@@ -541,7 +588,6 @@
                     if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) {
                         el.innerText = cacheCustomTexts[id];
                     } else if (!cacheCustomTexts[id] && document.activeElement !== el && id.startsWith('task-text')) {
-                         // Eğer custom text yoksa, isBlank durumuna göre text'i ayarla
                          const expectedText = isBlankSchedule ? "" : (baseSchedule[rowIndex] ? baseSchedule[rowIndex][i] : "Yeni Ders");
                          if(el.innerText !== expectedText) el.innerText = expectedText;
                     }
@@ -565,7 +611,6 @@
             else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
         });
 
-        // Settings'i Topluca Çekiyoruz (Yarış durumunu - race condition - önlemek için)
         onValue(settingsRef, (snapshot) => {
             const settings = snapshot.val() || {};
             currentStartDate = settings.startDate || "2024-04-17";
@@ -615,7 +660,6 @@
             applyDataToUI(); 
         });
 
-        // Toggle ve Event Listener'lar
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { set(ref(database, 'kamp/tasks/' + e.target.id), e.target.checked).catch(console.error); updateStats(); }
         });
@@ -652,7 +696,6 @@
             }
         });
 
-        // Arama (Search) Fonksiyonu
         document.getElementById('note-search').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const rows = document.querySelectorAll("#table-body tr");
@@ -666,7 +709,6 @@
             });
         });
 
-        // Düzenleme (Edit) Modu
         let isEditMode = false;
         const editBtn = document.getElementById("edit-btn");
         editBtn.addEventListener("click", () => {
@@ -686,7 +728,6 @@
             }
         });
 
-        // Tema (Dark/Light Mode)
         const currentTheme = localStorage.getItem("theme") || "light";
         document.documentElement.setAttribute("data-theme", currentTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
@@ -695,8 +736,8 @@
             localStorage.setItem("theme", theme);
         });
 
-        // Sıfırlama (Reset) Butonu - Boş Tablo Oluşturur
         document.getElementById("reset-btn").addEventListener("click", () => {
+            settingsMenu.classList.remove('show-dropdown'); // Menüyü kapat
             if (confirm("🚨 DİKKAT! Tüm ilerleme, notlar ve kamp programı SİLİNECEK.\nSadece boş bir planlama tablosu kalacak.\n\nDevam etmek istiyor musun?")) {
                 const btn = document.getElementById("reset-btn");
                 btn.innerHTML = "⏳ Siliniyor..."; 
@@ -706,24 +747,27 @@
                     remove(ref(database, 'kamp/tasks')), 
                     remove(ref(database, 'kamp/notes')), 
                     remove(ref(database, 'kamp/customTexts')), 
-                    set(ref(database, 'kamp/settings/isBlank'), true), // Boş tablo modunu aktif et
-                    set(ref(database, 'kamp/settings/rowCount'), 28) // Satır sayısını varsayılana çek
+                    set(ref(database, 'kamp/settings/isBlank'), true), 
+                    set(ref(database, 'kamp/settings/rowCount'), 28)
                 ]).then(() => {
                     alert("Tüm veriler temizlendi. Karşında planlamanı bekleyen boş bir tablo var!");
                     window.location.reload(); 
                 }).catch(err => {
                     console.error("Sıfırlama hatası:", err);
                     alert("Veriler sıfırlanırken bir hata oluştu.");
-                    btn.innerHTML = "🗑️ Sıfırla"; 
+                    btn.innerHTML = "🗑️ Tabloyu Sıfırla"; 
                     btn.disabled = false;
                 });
             }
         });
 
-        // İçe Aktar / Dışa Aktar Kodları
         const importBtn = document.getElementById('import-trigger-btn');
         const fileInput = document.getElementById('import-file');
-        importBtn.addEventListener('click', () => fileInput.click());
+        importBtn.addEventListener('click', () => {
+            settingsMenu.classList.remove('show-dropdown');
+            fileInput.click();
+        });
+        
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(!file) return;
@@ -749,6 +793,7 @@
         });
 
         document.getElementById("export-btn").addEventListener("click", () => {
+            settingsMenu.classList.remove('show-dropdown');
             const backupData = { tasks: cacheTasks, notes: cacheNotes, customTexts: cacheCustomTexts, settings: { startDate: currentStartDate, rowCount: tbody.children.length, targetHours: currentTarget, isBlank: isBlankSchedule } };
             const dataStr = JSON.stringify(backupData, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
@@ -757,8 +802,8 @@
             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         });
 
-        // Gerçek Zamanlı Bildirim Sistemi (Arka Plan Kontrolü)
         document.getElementById("notify-btn").addEventListener("click", () => {
+            settingsMenu.classList.remove('show-dropdown');
             if (!("Notification" in window)) { alert("Tarayıcın bildirimleri desteklemiyor."); return; }
             if (Notification.permission === "granted") { 
                 new Notification("Kamp Takip Pro", { body: "Bildirimler zaten aktif! Her akşam 20:00'da hatırlatıcı gönderilecek." }); 
@@ -769,10 +814,8 @@
             }
         });
 
-        // Sekme arka planda kaldığı sürece her 1 dakikada bir kontrol eder
         setInterval(() => {
             const now = new Date();
-            // Sadece Saat tam 20:00 olduğunda bildirim atar
             if (now.getHours() === 20 && now.getMinutes() === 0) {
                 if (Notification.permission === "granted") {
                     const todayZero = new Date(); todayZero.setHours(0,0,0,0);
@@ -797,7 +840,7 @@
                     }
                 }
             }
-        }, 60000); // 60 saniyede bir saati kontrol et
+        }, 60000); 
     });
 </script>
 
