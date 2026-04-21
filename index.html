@@ -165,13 +165,11 @@
 <body>
 
 <div class="sticky-header">
-    <div class="controls">
+        <div class="controls">
         <div class="controls-left">
             <button class="btn btn-theme" id="theme-toggle" title="Karanlık/Aydınlık Mod">🌙 Mod</button>
             <button class="btn btn-edit" id="edit-btn">✏️ Düzenle</button>
             <div class="setting-container" title="Kamp Başlangıç Tarihi">🗓️ <input type="date" id="start-date-picker"></div>
-            <div class="setting-container" title="Günlük Hedef Çalışma Saati">🎯 Hedef: <input type="number" id="daily-target" value="6" min="1" max="24" style="width:35px;">s</div>
-            <div class="setting-container" title="Ders Sütunu Sayısı (Tabloyu Genişletir)">📚 Sütun: <input type="number" id="col-count" value="5" min="1" max="10" style="width:35px;"></div>
             <input type="text" id="note-search" class="note-input search-input" placeholder="🔍 Notlarda ara...">
         </div>
         <div class="controls-right">
@@ -179,7 +177,10 @@
             <div class="dropdown">
                 <button class="btn btn-theme" id="settings-toggle">⚙️ Ayarlar</button>
                 <div class="dropdown-content" id="settings-menu">
-                    <button class="drop-item" id="notify-btn">🔔 Bildirimleri Aç</button>
+                    <div class="drop-item" style="cursor: default;">🎯 Hedef (Saat): <input type="number" id="daily-target" value="6" min="1" max="24" style="width:40px; margin-left:auto; border-radius:4px; border:1px solid var(--table-border); background:var(--bg-color); color:var(--text-color); padding:2px; text-align:center;"></div>
+                    <div class="drop-item" style="cursor: default;">📚 Ders Sütunu: <input type="number" id="col-count" value="5" min="1" max="10" style="width:40px; margin-left:auto; border-radius:4px; border:1px solid var(--table-border); background:var(--bg-color); color:var(--text-color); padding:2px; text-align:center;"></div>
+                    
+                    <button class="drop-item" id="notify-btn">🔔 Bildirimleri Aç (Test)</button>
                     <button class="drop-item" id="export-btn">📥 Yedeği İndir</button>
                     <button class="drop-item" id="import-trigger-btn">📤 Yedek Yükle</button>
                     <button class="drop-item danger-item" id="reset-btn">🗑️ Tabloyu Sıfırla</button>
@@ -187,6 +188,8 @@
             </div>
             <input type="file" id="import-file" style="display:none" accept=".json">
         </div>
+    </div>
+
     </div>
     <div class="progress-wrapper">
         <div class="progress-header">
