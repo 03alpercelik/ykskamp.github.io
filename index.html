@@ -858,6 +858,60 @@
                 alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
             }
         });
+        // --- YKS GERİ SAYIM SAYACI ---
+        function updateYksCountdown() {
+            // YKS 2026 tahmini tarihi: 20 Haziran 2026
+            const yksDate = new Date("2026-06-20T10:15:00").getTime(); 
+            const now = new Date().getTime();
+            const distance = yksDate - now;
+
+            const countdownElement = document.getElementById("yks-countdown");
+            if (distance < 0) {
+                countdownElement.innerHTML = "🎯 YKS Zamanı!";
+                return;
+            }
+            
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            countdownElement.innerHTML = `⏳ YKS: ${days} Gün`;
+        }
+        // Sayacı ilk açılışta çalıştır ve her gün yenile
+        updateYksCountdown();
+        setInterval(updateYksCountdown, 1000 * 60 * 60 * 24);
+
+
+        // --- AYARLAR MENÜSÜ İÇİ TIKLAMA DÜZELTMESİ ---
+        // Sütun ve Hedef inputlarına tıklayınca menünün kapanmasını engeller
+        document.getElementById('settings-menu').addEventListener('click', (e) => {
+            if(e.target.tagName === 'INPUT') {
+                e.stopPropagation();
+            }
+        });
+
+
+        // --- BİLDİRİMLER (TEST VE ÇALIŞTIRMA) ---
+        document.getElementById('notify-btn').addEventListener('click', () => {
+            if (!("Notification" in window)) {
+                alert("Tarayıcın masaüstü/mobil bildirimleri desteklemiyor.");
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                // İzin zaten varsa test bildirimi yolla
+                new Notification("YKS Kamp Takip", {
+                    body: "Bildirimler aktif! (Sekme açık kaldığı sürece çalışır)",
+                });
+                alert("Bildirimler açık. Sağ alttan veya üstten test bildirimi gelmiş olmalı.");
+            } else if (Notification.permission !== "denied") {
+                // İzin iste
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("Harika!", { body: "Bildirim izinleri başarıyla verildi." });
+                    }
+                });
+            } else {
+                alert("Bildirimler engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
+            }
+        });
 });
 </script>
 
