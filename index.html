@@ -12,6 +12,36 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        /* TABLO İÇİ KAYDIRMA VE BÖLMELERİ DONDURMA (FROZEN PANES) */
+        .table-container { 
+            max-height: 75vh; /* Ekranda fazla yer kaplamaması için dikey sınır */
+            overflow-y: auto; 
+            overflow-x: auto; 
+        }
+        
+        /* Başlıkları (Üst Satırı) Sabitle */
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            z-index: 20; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        
+        /* Tarihleri (İlk Sütunu) Sabitle */
+        th:first-child, td:first-child { 
+            position: sticky !important; 
+            left: 0; 
+            z-index: 15; 
+            border-right: 2px solid var(--table-border); 
+        }
+        
+        /* En sol üst köşenin (Tarih Başlığı) hem üstten hem soldan sabit kalması */
+        thead th:first-child { z-index: 25; }
+        
+        /* Tarih sütununun arka plan renklerinin şeffaf olup yazılara girmemesi için */
+        tr:nth-child(even) td:first-child { background-color: var(--row-even) !important; }
+        tr:nth-child(odd) td:first-child { background-color: var(--row-odd) !important; }
+        .today-highlight td:first-child { background-color: var(--highlight) !important; }
 
     <style>
         :root {
@@ -648,33 +678,41 @@
             debouncedApplyData(); 
         });
 
-        // --- ETKİLEŞİMLER (SWIPE & CLICKS) ---
-        
-        // 1. Swipe to Complete (Mobile)
+
+                // 1. Swipe to Complete (Mobile) - DÜZELTİLDİ
         let touchstartX = 0, touchstartY = 0;
+        let isScrolling = false;
+
         tbody.addEventListener("touchstart", (e) => {
             touchstartX = e.changedTouches[0].screenX;
             touchstartY = e.changedTouches[0].screenY;
+            isScrolling = false;
+        }, {passive: true});
+
+        // Eğer kullanıcı parmağıyla tabloyu kaydırıyorsa swipe işlemini iptal et
+        tbody.addEventListener("touchmove", () => {
+            isScrolling = true; 
         }, {passive: true});
 
         tbody.addEventListener("touchend", (e) => {
+            if (isScrolling) return; // Tablo kaydırıldıysa tıklama yapma!
+            
             const touchendX = e.changedTouches[0].screenX;
             const touchendY = e.changedTouches[0].screenY;
             const diffX = touchendX - touchstartX;
             const diffY = Math.abs(touchendY - touchstartY);
             
-            // Eğer dikeyde çok kayılmadıysa ve yatayda belirgin bir kaydırma varsa
-            if (Math.abs(diffX) > 45 && diffY < 40) { 
+            if (Math.abs(diffX) > 40 && diffY < 30) { 
                 const label = e.target.closest('.task-label');
                 if (label) {
                     const box = label.querySelector('.task-checkbox');
                     if (box) {
-                        if (diffX > 0 && !box.checked) { // Sağa Kaydırma -> Tamamla
+                        if (diffX > 0 && !box.checked) { 
                             box.checked = true;
                             box.dispatchEvent(new Event("change", { bubbles: true }));
                             label.classList.add("swiping-right");
                             setTimeout(() => label.classList.remove("swiping-right"), 250);
-                        } else if (diffX < 0 && box.checked) { // Sola Kaydırma -> İptal Et
+                        } else if (diffX < 0 && box.checked) { 
                             box.checked = false;
                             box.dispatchEvent(new Event("change", { bubbles: true }));
                             label.classList.add("swiping-left");
@@ -684,6 +722,8 @@
                 }
             }
         });
+
+        
 
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
