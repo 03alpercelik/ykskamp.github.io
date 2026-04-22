@@ -8,11 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>YKS Kamp Takip Pro</title>
-     <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        
 
     <style>
         :root {
@@ -77,18 +76,31 @@
         .countdown-badge { background: #222f3e; color: #ff9f43; border: none; letter-spacing: 0.5px; }
 
         .content { padding: 25px 20px; display: flex; flex-direction: column; align-items: center; }
-        .table-container { width: 100%; max-width: 1300px; background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow-x: auto; border: 1px solid var(--table-border); margin-bottom: 20px; }
+        
+        /* TABLO İÇİ KAYDIRMA VE BÖLMELERİ DONDURMA (FROZEN PANES) */
+        .table-container { width: 100%; max-width: 1300px; background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow-x: auto; overflow-y: auto; max-height: 75vh; border: 1px solid var(--table-border); margin-bottom: 20px; }
         
         table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1100px; color: var(--text-color); }
         th, td { border-bottom: 1px solid var(--table-border); padding: 12px; text-align: left; color: var(--text-color); vertical-align: middle; transition: background 0.3s; }
-        thead th { background: var(--header-bg); color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
         
-        .time-tag { display: block; font-size: 10px; margin-top: 5px; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; width: fit-content; }
+        /* Başlıkları Sabitle */
+        thead th { background: var(--header-bg); color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* Tarihleri Sabitle */
+        th:first-child, td:first-child { position: sticky !important; left: 0; z-index: 15; border-right: 2px solid var(--table-border); }
+        thead th:first-child { z-index: 25; } /* Sol üst köşe */
+        
+        /* Satır Renkleri */
         tr:nth-child(even) { background-color: var(--row-even); }
         tr:nth-child(odd) { background-color: var(--row-odd); }
+        tr:nth-child(even) td:first-child { background-color: var(--row-even) !important; }
+        tr:nth-child(odd) td:first-child { background-color: var(--row-odd) !important; }
+        
+        .time-tag { display: block; font-size: 10px; margin-top: 5px; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; width: fit-content; }
         
         .past-day { background-color: var(--past-day-bg) !important; opacity: 0.65; filter: grayscale(0.5); }
         .past-day:hover { opacity: 1; filter: none; }
+        .past-day td:first-child { background-color: var(--past-day-bg) !important; }
         
         .date-wrapper { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .btn-complete-day { background: transparent; border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 12px; padding: 3px 6px; transition: all 0.2s; color: var(--text-color); opacity: 0.5; }
@@ -104,6 +116,7 @@
         .search-input { min-width: auto; height: 35px; width: 200px; border-radius: 20px; padding: 0 15px; }
 
         .today-highlight, .today-highlight td { background-color: var(--highlight) !important; color: #000000 !important; font-weight: 700 !important; }
+        .today-highlight td:first-child { background-color: var(--highlight) !important; }
         .today-highlight .task-label, .today-highlight .task-text, .today-highlight .completed-text { color: #000000 !important; }
         .today-highlight .time-tag { background: rgba(0,0,0,0.15) !important; color: #111111 !important; }
         .today-highlight .note-input { border-color: #555555 !important; color: #000000 !important; background: rgba(255,255,255,0.4) !important; }
@@ -150,7 +163,8 @@
         [data-theme="dark"] .heatmap-day[data-level="4"] { background-color: #39d353; }
 
         @media (max-width: 768px) {
-            table { min-width: auto; font-size: 12px; }
+            /* MİNUMUM GENİŞLİK ARTIRILDI (KAYDIRMA ÇALIŞSIN DİYE) */
+            table { min-width: 950px; font-size: 12px; }
             th, td { padding: 10px 6px; }
             .time-tag { font-size: 9px; padding: 1px 4px; }
             .hour-badge { font-size: 10px; padding: 3px 6px; }
@@ -161,48 +175,20 @@
             .dashboard { grid-template-columns: 1fr; }
             .search-input { width: 100%; margin-top: 5px; }
             .btn-complete-day { padding: 8px 12px; font-size: 16px; background: var(--row-even); border: 2px solid var(--table-border); border-radius: 8px; opacity: 0.8; }
-        }        /* Ayarlar Menüsü İyileştirmesi */
+        }        
+        
+        /* Ayarlar Menüsü İyileştirmesi */
         .dropdown-content { min-width: 220px; padding: 8px 0; border-radius: 12px; }
         .dropdown-content .drop-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; white-space: nowrap; padding: 12px 16px; width: 100%; text-align: left; border: none; background: transparent; color: var(--text-color); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
         .dropdown-content input[type="number"] { width: 45px !important; padding: 4px; border-radius: 6px; border: 1px solid var(--table-border) !important; background: var(--bg-color) !important; color: var(--text-color) !important; text-align: center; font-weight: 600; }
         .dropdown-content .drop-item:hover { background-color: var(--dropdown-hover); }
-        /* TABLO İÇİ KAYDIRMA VE BÖLMELERİ DONDURMA (FROZEN PANES) */
-        .table-container { 
-            max-height: 75vh; 
-            overflow-y: auto; 
-            overflow-x: auto; 
-        }
-        
-        /* Başlıkları (Üst Satırı) Sabitle */
-        thead th { 
-            position: sticky; 
-            top: 0; 
-            z-index: 20; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-        }
-        
-        /* Tarihleri (İlk Sütunu) Sabitle */
-        th:first-child, td:first-child { 
-            position: sticky !important; 
-            left: 0; 
-            z-index: 15; 
-            border-right: 2px solid var(--table-border); 
-        }
-        
-        /* En sol üst köşenin (Tarih Başlığı) hem üstten hem soldan sabit kalması */
-        thead th:first-child { z-index: 25; }
-        
-        /* Tarih sütununun arka plan renklerinin şeffaf olup yazılara girmemesi için */
-        tr:nth-child(even) td:first-child { background-color: var(--row-even) !important; }
-        tr:nth-child(odd) td:first-child { background-color: var(--row-odd) !important; }
-        .today-highlight td:first-child { background-color: var(--highlight) !important; }
 
     </style>
 </head>
 <body>
 
 <div class="sticky-header">
-        <div class="controls">
+    <div class="controls">
         <div class="controls-left">
             <button class="btn btn-theme" id="theme-toggle" title="Karanlık/Aydınlık Mod">🌙 Mod</button>
             <button class="btn btn-edit" id="edit-btn">✏️ Düzenle</button>
@@ -226,23 +212,20 @@
             <input type="file" id="import-file" style="display:none" accept=".json">
         </div>
     </div>
-
-    </div>
-    <div class="progress-wrapper">
-        <div class="progress-header">
-            <span id="current-date-info">YKS Kamp Takvimi</span>
-                        <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-                <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
-                <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplanıyor...</span>
-                <span id="progress-text">%0 Tamamlandı</span>
-            </div>
-
+</div>
+<div class="progress-wrapper">
+    <div class="progress-header">
+        <span id="current-date-info">YKS Kamp Takvimi</span>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+            <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
+            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplanıyor...</span>
+            <span id="progress-text">%0 Tamamlandı</span>
         </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar-fill" id="progress-fill"></div>
-        </div>
-        <div class="stats-container" id="stats-panel"></div>
     </div>
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="stats-container" id="stats-panel"></div>
 </div>
 
 <div class="content">
@@ -250,7 +233,7 @@
         <table id="schedule-table">
             <thead>
                 <tr id="header-row">
-                    </tr>
+                </tr>
             </thead>
             <tbody id="table-body"></tbody>
         </table>
@@ -388,7 +371,6 @@
             let html = `<td><div class="date-wrapper"><span class="date-cell" style="font-weight: 600;"></span><button class="btn-complete-day" title="Tüm Günü Tamamla/Temizle">✅</button></div></td>`;
             
             for (let c = 0; c < currentCols; c++) {
-                // YENİ GÜVENLİ ID YAPISI: task-{satır}-{sütun}
                 const taskId = `task-${rowIndex}-${c}`;
                 const editId = `task-text-${rowIndex}-${c}`;
                 html += `<td><div class="task-label"><input type="checkbox" id="${taskId}" class="task-checkbox"><span class="task-text editable-text" data-edit-id="${editId}">Ders/Konu Ekle</span></div></td>`;
@@ -507,16 +489,17 @@
             rows.forEach(row => {
                 const dateCell = row.querySelector('.date-cell');
                 if (!dateCell) return;
-                            const dateStr = dateCell.dataset.fulldate;
-            const parts = dateStr.split('-');
-            const rowDate = new Date(parts[0], parts[1]-1, parts[2]);
-            const bugun = new Date();
-            bugun.setHours(0,0,0,0);
+                
+                const dateStr = dateCell.dataset.fulldate;
+                const parts = dateStr.split('-');
+                const rowDate = new Date(parts[0], parts[1]-1, parts[2]);
+                const bugun = new Date();
+                bugun.setHours(0,0,0,0);
 
-            // Eğer takvimdeki gün bugünden sonraysa (gelecekse) kutuyu çizmeden atla:
-            if (rowDate > bugun) return;
+                // Eğer takvimdeki gün bugünden sonraysa (gelecekse) kutuyu çizmeden atla:
+                if (rowDate > bugun) return;
 
-            const hours = dailyHoursMap[dateStr] || 0;
+                const hours = dailyHoursMap[dateStr] || 0;
 
                 let level = 0;
                 if (hours > 0 && hours < currentTarget / 2) level = 1;
@@ -530,7 +513,8 @@
                 box.title = `${dateCell.innerText} \nÇalışma: ${hours.toFixed(1)} Saat\nHedef: ${currentTarget} Saat`;
                 container.appendChild(box);
             });
-                        // --- STREAK (SERİ) HESAPLAMA (Geriye Doğru) ---
+            
+            // --- STREAK (SERİ) HESAPLAMA (Geriye Doğru) ---
             let currentStreak = 0;
             const todayZ = new Date(); 
             todayZ.setHours(0,0,0,0);
@@ -643,12 +627,11 @@
         settingsRef = ref(database, `${SHARED_PATH}settings/`);
         const connectedRef = ref(database, '.info/connected');
 
-                onValue(connectedRef, (snap) => {
+        onValue(connectedRef, (snap) => {
             const cs = document.getElementById("connection-status");
             if (snap.val() === true) { cs.innerHTML = "🟢 Çevrimiçi"; cs.className = "connection-status status-online"; } 
             else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
         });
-
 
         onValue(settingsRef, (snapshot) => {
             const s = snapshot.val() || {};
@@ -679,8 +662,7 @@
             debouncedApplyData(); 
         });
 
-
-                // 1. Swipe to Complete (Mobile) - DÜZELTİLDİ
+        // 1. Swipe to Complete (Mobile) - DÜZELTİLDİ
         let touchstartX = 0, touchstartY = 0;
         let isScrolling = false;
 
@@ -724,8 +706,6 @@
             }
         });
 
-        
-
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 const isChecked = e.target.checked;
@@ -734,7 +714,7 @@
                 const taskId = e.target.id;
                 let taskData = null;
                 if (isChecked) {
-                    const parts = taskId.split('-'); // task-{row}-{col}
+                    const parts = taskId.split('-'); 
                     const colIndex = parseInt(parts[2]);
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
                     taskData = { done: true, hours: getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : ""), updatedAt: Date.now() };
@@ -850,14 +830,11 @@
             if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown');
         });
 
-            // --- EKSİK ÖZELLİKLERİN EKLENMESİ ---
-
         // 1. Tabloyu Sıfırla (Reset)
         document.getElementById('reset-btn').addEventListener('click', async () => {
             if (confirm("Tüm tablo verileri, tamamlanan görevler ve notlar KALICI olarak silinecek. Emin misin?")) {
                 if (database) {
                     try {
-                        // Firebase üzerindeki verileri temizle (UI otomatik güncellenecek)
                         await set(ref(database, `${SHARED_PATH}tasks`), null);
                         await set(ref(database, `${SHARED_PATH}notes`), null);
                         await set(ref(database, `${SHARED_PATH}customTexts`), null);
@@ -883,28 +860,23 @@
                     rowCount: currentRowCount 
                 }
             };
-            
-            // JSON formatında dosyayı oluştur ve indir
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
             downloadAnchorNode.setAttribute("download", "yks_kamp_yedek_" + new Date().toISOString().split('T')[0] + ".json");
-            document.body.appendChild(downloadAnchorNode); // Firefox uyumluluğu için
+            document.body.appendChild(downloadAnchorNode); 
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         });
 
         // 3. Yedek Yükle (Import)
-        // Yükle butonuna basınca gizli file input'unu tetikler
         document.getElementById('import-trigger-btn').addEventListener('click', () => {
             document.getElementById('import-file').click();
         });
 
-        // Dosya seçildiğinde okuma işlemi
         document.getElementById('import-file').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
@@ -924,7 +896,7 @@
                 }
             };
             reader.readAsText(file);
-            e.target.value = ''; // Aynı dosyayı üst üste seçebilmek için temizle
+            e.target.value = ''; 
         });
 
         // 4. Bildirimleri Aç (Notifications)
@@ -933,9 +905,9 @@
                 alert("Tarayıcın masaüstü/mobil bildirimleri desteklemiyor.");
                 return;
             }
-            
             if (Notification.permission === "granted") {
-                alert("Bildirimler zaten açık!");
+                new Notification("YKS Kamp Takip", { body: "Bildirimler aktif! (Sekme açık kaldığı sürece çalışır)" });
+                alert("Bildirimler açık. Sağ alttan veya üstten test bildirimi gelmiş olmalı.");
             } else if (Notification.permission !== "denied") {
                 Notification.requestPermission().then(permission => {
                     if (permission === "granted") {
@@ -951,9 +923,9 @@
                 alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
             }
         });
+
         // --- YKS GERİ SAYIM SAYACI ---
         function updateYksCountdown() {
-            // YKS 2026 tahmini tarihi: 20 Haziran 2026
             const yksDate = new Date("2026-06-20T10:15:00").getTime(); 
             const now = new Date().getTime();
             const distance = yksDate - now;
@@ -963,42 +935,15 @@
                 countdownElement.innerHTML = "🎯 YKS Zamanı!";
                 return;
             }
-            
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             countdownElement.innerHTML = `⏳ YKS: ${days} Gün`;
         }
-        // Sayacı ilk açılışta çalıştır ve her gün yenile
         updateYksCountdown();
         setInterval(updateYksCountdown, 1000 * 60 * 60 * 24);
 
-
         // --- AYARLAR MENÜSÜ İÇİ TIKLAMA DÜZELTMESİ ---
-        // Sütun ve Hedef inputlarına tıklayınca menünün kapanmasını engeller
         document.getElementById('settings-menu').addEventListener('click', (e) => {
-            if(e.target.tagName === 'INPUT') {
-                e.stopPropagation();
-            }
-        });
-
-        // --- BİLDİRİMLER (TEST VE ÇALIŞTIRMA) ---
-        document.getElementById('notify-btn').addEventListener('click', () => {
-            if (!("Notification" in window)) {
-                alert("Tarayıcın masaüstü/mobil bildirimleri desteklemiyor.");
-                return;
-            }
-            
-            if (Notification.permission === "granted") {
-                new Notification("YKS Kamp Takip", { body: "Bildirimler aktif! (Sekme açık kaldığı sürece çalışır)" });
-                alert("Bildirimler açık. Sağ alttan veya üstten test bildirimi gelmiş olmalı.");
-            } else if (Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        new Notification("Harika!", { body: "Bildirim izinleri başarıyla verildi." });
-                    }
-                });
-            } else {
-                alert("Bildirimler engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
-            }
+            if(e.target.tagName === 'INPUT') e.stopPropagation();
         });
 
         // BONUS: PWA (Service Worker) Kodu
@@ -1008,9 +953,7 @@
             });
         }
 
-    }); // <-- İşte uygulamanın çökmesini engelleyen asıl kapanış!
+    }); 
 </script>
 </body>
 </html>
-
-        
