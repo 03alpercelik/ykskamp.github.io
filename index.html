@@ -939,7 +939,6 @@
             }
         });
 
-
         // --- BİLDİRİMLER (TEST VE ÇALIŞTIRMA) ---
         document.getElementById('notify-btn').addEventListener('click', () => {
             if (!("Notification" in window)) {
@@ -948,13 +947,9 @@
             }
             
             if (Notification.permission === "granted") {
-                // İzin zaten varsa test bildirimi yolla
-                new Notification("YKS Kamp Takip", {
-                    body: "Bildirimler aktif! (Sekme açık kaldığı sürece çalışır)",
-                });
+                new Notification("YKS Kamp Takip", { body: "Bildirimler aktif! (Sekme açık kaldığı sürece çalışır)" });
                 alert("Bildirimler açık. Sağ alttan veya üstten test bildirimi gelmiş olmalı.");
             } else if (Notification.permission !== "denied") {
-                // İzin iste
                 Notification.requestPermission().then(permission => {
                     if (permission === "granted") {
                         new Notification("Harika!", { body: "Bildirim izinleri başarıyla verildi." });
@@ -964,15 +959,17 @@
                 alert("Bildirimler engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver.");
             }
         });
+
+        // BONUS: PWA (Service Worker) Kodu
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW kayıt hatası: ', err));
+            });
         }
-    }); // (Bu satır bildirim butonunu kapatıyor)
 
-    // BONUS: PWA (Service Worker) kodunu eklemek istersen tam yeri burası:
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW kayıt hatası: ', err));
-        });
-    }
-
-}); // <--- İŞTE ACİL OLAN EKSİK KAPANIŞ BURASI! (Ana bloğu kapatıyor)
+    }); // <-- İşte uygulamanın çökmesini engelleyen asıl kapanış!
 </script>
+</body>
+</html>
+
+        
