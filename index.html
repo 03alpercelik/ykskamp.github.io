@@ -129,7 +129,6 @@
         body.edit-mode .editable-text:focus { outline: none; background: rgba(0, 184, 148, 0.2); border-style: solid; }
         body.edit-mode .task-label { cursor: default; }
 
-        /* Isı haritası silindi, dashboard artık yanyana 2 kutu olacak şekilde ayarlandı */
         .dashboard { width: 100%; max-width: 1300px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .dash-card { background: var(--card-bg); padding: 24px; border-radius: 16px; border: 1px solid var(--table-border); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.08); transition: transform 0.3s ease; }
         .dash-card:hover { transform: translateY(-3px); }
@@ -143,7 +142,7 @@
         .week-item .w-val span { font-size: 11px; font-weight: 600; color: var(--secondary-text); }
 
         @media (max-width: 768px) {
-            table { min-width: 950px; font-size: 12px; }
+            table { min-width: 1100px; font-size: 12px; }
             th, td { padding: 10px 6px; }
             .time-tag { font-size: 9px; padding: 1px 4px; }
             .hour-badge { font-size: 10px; padding: 3px 6px; }
@@ -279,7 +278,7 @@
     };
 
     const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
-    const DEFAULT_START_DATE = "2026-04-21";
+    const DEFAULT_START_DATE = "2026-05-04";
     
     let database, tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
     
@@ -292,8 +291,8 @@
         
         let chartInstance = null;
         let currentTarget = 6;
-        let currentCols = 5;
-        let currentRowCount = 28;
+        let currentCols = 5; // Standart olarak 5 sütunla başlıyor
+        let currentRowCount = 17;
         let currentStartDate = DEFAULT_START_DATE;
 
         let cacheTasks = {};
@@ -301,7 +300,6 @@
         let cacheCustomTexts = {};
         let isEditMode = false;
 
-        const today = new Date();
         const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
@@ -315,14 +313,14 @@
             currentStartDate = idbSettings.startDate || DEFAULT_START_DATE;
             currentTarget = idbSettings.targetHours || 6;
             currentCols = idbSettings.colCount || 5;
-            currentRowCount = idbSettings.rowCount || 28;
+            currentRowCount = idbSettings.rowCount || 17;
         }
 
         const renderTableStructure = () => {
             let thHtml = `<th>Tarih</th>`;
             for(let i=0; i<currentCols; i++) {
                 const subjDef = `Ders ${i+1}`;
-                const timeDef = i === 0 ? "08:30 - 10:30" : "00:00 - 00:00";
+                const timeDef = i === 0 ? "09:00 - 10:30" : "00:00 - 00:00";
                 thHtml += `<th><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${subjDef}</span> <span class="time-tag editable-text" data-edit-id="th-time-${i}">${timeDef}</span></th>`;
             }
             thHtml += `<th>Günün Notu</th><th>Toplam Saat</th>`;
@@ -569,7 +567,7 @@
         onValue(settingsRef, (snapshot) => {
             const s = snapshot.val() || {};
             const newCols = s.colCount || 5;
-            const newRows = s.rowCount || 28;
+            const newRows = s.rowCount || 17;
             currentStartDate = s.startDate || DEFAULT_START_DATE;
             currentTarget = s.targetHours || 6;
 
@@ -795,6 +793,7 @@
             downloadAnchorNode.remove();
         });
 
+        // KUSURSUZ JSON İÇE AKTARMA (5 SÜTUNLU UYUMLU)
         document.getElementById('import-trigger-btn').addEventListener('click', () => {
             document.getElementById('import-file').click();
         });
@@ -806,7 +805,7 @@
             reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
-                    if (confirm("Kamp programı yüklenecek ve tablo tamamen düzeltilecek. Onaylıyor musun?")) {
+                    if (confirm("Kamp programı yüklenecek ve tablo tamamen 5 sütuna uyarlanacak. Onaylıyor musun?")) {
                         if (database) {
                             
                             if (data.tasks !== undefined || data.settings !== undefined || data.customTexts !== undefined) {
@@ -819,31 +818,31 @@
                                 let newCustomTexts = {}; 
                                 let newNotes = {};
                                 
-                                newCustomTexts["th-subj-0"] = "Matematik";
-                                newCustomTexts["th-time-0"] = "09:00 - 11:00"; 
+                                newCustomTexts["th-subj-0"] = "Rutinler";
+                                newCustomTexts["th-time-0"] = "09:00 - 10:30"; 
                                 
-                                newCustomTexts["th-subj-1"] = "Fizik";
-                                newCustomTexts["th-time-1"] = "11:30 - 13:00"; 
+                                newCustomTexts["th-subj-1"] = "Matematik";
+                                newCustomTexts["th-time-1"] = "11:00 - 13:00"; 
                                 
-                                newCustomTexts["th-subj-2"] = "Kimya";
+                                newCustomTexts["th-subj-2"] = "Fizik";
                                 newCustomTexts["th-time-2"] = "14:00 - 15:30"; 
                                 
-                                newCustomTexts["th-subj-3"] = "Biyoloji";
+                                newCustomTexts["th-subj-3"] = "Kimya";
                                 newCustomTexts["th-time-3"] = "16:00 - 17:30"; 
                                 
+                                newCustomTexts["th-subj-4"] = "Biyoloji";
+                                newCustomTexts["th-time-4"] = "18:00 - 19:30"; 
+                                
                                 data.forEach((gun, rowIndex) => {
-                                    newCustomTexts[`task-text-${rowIndex}-0`] = gun.matematik || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-1`] = gun.fizik || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-2`] = gun.kimya || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-3`] = gun.biyoloji || "-";
-                                    
-                                    if (gun.gunlukRutinler) {
-                                        newNotes[`note-${rowIndex + 1}`] = gun.gunlukRutinler;
-                                    }
+                                    newCustomTexts[`task-text-${rowIndex}-0`] = gun.rutin || "-";
+                                    newCustomTexts[`task-text-${rowIndex}-1`] = gun.matematik || "-";
+                                    newCustomTexts[`task-text-${rowIndex}-2`] = gun.fizik || "-";
+                                    newCustomTexts[`task-text-${rowIndex}-3`] = gun.kimya || "-";
+                                    newCustomTexts[`task-text-${rowIndex}-4`] = gun.biyoloji || "-";
                                 });
                                 
                                 await set(ref(database, `${SHARED_PATH}settings`), {
-                                    colCount: 4,
+                                    colCount: 5,
                                     rowCount: data.length,
                                     startDate: "2026-05-04",
                                     targetHours: 6
@@ -854,31 +853,29 @@
                                 await set(ref(database, `${SHARED_PATH}notes`), newNotes);
                             }
 
-                            alert("Yedek başarıyla yüklendi! Sayfa yenileniyor...");
+                            alert("Yedek başarıyla yüklendi! Yeni 5 sütunlu yapı uygulanıyor...");
                             window.location.reload(); 
                         }
                     }
                 } catch (err) {
                     console.error("Yükleme hatası:", err);
-                    alert("Yükleme başarısız oldu. Lütfen dosyayı kontrol et.");
+                    alert("Yükleme başarısız oldu. Lütfen geçerli bir JSON dosyası seç.");
                 }
             };
             reader.readAsText(file);
             e.target.value = ''; 
         });
 
-        // 4. GARANTİLİ BİLDİRİM SİSTEMİ (Engellere Karşı Korumalı)
+        // BİLDİRİM FONKSİYONLARI (ENGEL AŞICI POP-UP YÖNTEMİ EKLENDİ)
         async function triggerNotification(title, body) {
             try {
-                // Eğer bildirim izni verildiyse sistemden göndermeyi dene
                 if (Notification.permission === "granted") {
                     const options = {
                         body: body,
                         icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
-                        requireInteraction: true // Bildirimin ekranda kalmasını sağlar
+                        requireInteraction: true
                     };
                     
-                    // Telefonlar için (PWA Service Worker) öncelikli deneme
                     if ('serviceWorker' in navigator) {
                         const reg = await navigator.serviceWorker.getRegistration();
                         if (reg && reg.showNotification) {
@@ -887,14 +884,11 @@
                         }
                     }
                     
-                    // Klasik Web Bildirimi (PC için)
                     new Notification(title, options);
                 } else {
-                    // İzin yoksa veya engellendiyse Alert Popup ile göster (Garanti Yöntem)
                     alert(`🔔 ${title}\n\n${body}`); 
                 }
             } catch (error) {
-                console.error("Arkaplan bildirimi başarısız oldu, popup kullanılıyor:", error);
                 alert(`🔔 ${title}\n\n${body}`); 
             }
         }
@@ -903,7 +897,7 @@
             const todayRow = document.querySelector('.today-highlight');
             
             if (!todayRow) {
-                await triggerNotification("YKS Kamp Takip", "Bugün için bir kamp programı bulunamadı. Belki de dinlenme günündür!");
+                await triggerNotification("YKS Kamp Takip", "Bugün için bir görev bulunamadı. Belki de dinlenme günündür!");
                 return;
             }
 
@@ -932,10 +926,9 @@
             await triggerNotification("Bugün Yapılacaklar Listesi", bodyText);
         }
 
-        // İzin İsteme Butonu
         document.getElementById('notify-btn').addEventListener('click', () => {
             if (!("Notification" in window)) {
-                alert("Tarayıcın masaüstü/mobil bildirimleri desteklemiyor. Bildirimler pop-up olarak gösterilecek.");
+                alert("Tarayıcın bildirimleri desteklemiyor. Sorun değil, görevler pop-up mesajı olarak ekrana gelecek.");
                 return;
             }
             if (Notification.permission === "granted") {
@@ -945,15 +938,14 @@
                     if (permission === "granted") {
                         alert("Harika! Bildirim izinleri başarıyla verildi.");
                     } else {
-                        alert("Bildirim izni verilmedi. Görevler pop-up mesajı (alert) olarak gösterilecek.");
+                        alert("Bildirim izni verilmedi. Görevler pop-up mesajı olarak gösterilecek.");
                     }
                 });
             } else {
-                alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundaki kilit simgesinden izin ver veya ekran mesajlarıyla devam et.");
+                alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundan izin ver veya ekran pop-up'ları ile devam et.");
             }
         });
 
-        // Test Bildirimi Gönderme Butonu
         document.getElementById('test-notify-btn').addEventListener('click', () => {
             sendTodayNotification();
         });
