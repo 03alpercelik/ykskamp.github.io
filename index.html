@@ -30,7 +30,7 @@
             --past-day-bg: #162032; --dropdown-hover: #334155;
         }
 
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; padding-bottom: 60px; }
 
         .sticky-header { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 15px 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); backdrop-filter: blur(8px); border-bottom: 1px solid var(--table-border); }
 
@@ -111,7 +111,6 @@
         .btn-complete-day { background: transparent; border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 12px; padding: 3px 6px; transition: all 0.2s; color: var(--text-color); opacity: 0.5; }
         .btn-complete-day:hover { background: var(--accent); color: white; opacity: 1; border-color: var(--accent); }
 
-        /* Akıcı Swipe için CSS Geçiş Tanımlaması */
         .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; user-select: none; }
         .completed-text { text-decoration: line-through; opacity: 0.7; }
         
@@ -148,6 +147,16 @@
         .week-item .w-val { font-size: 18px; color: var(--text-color); font-weight: 900; }
         .week-item .w-val span { font-size: 11px; font-weight: 600; color: var(--secondary-text); }
 
+        /* Yeni Eklenen Floating Çalışma Sayacı CSS Detayları */
+        .timer-widget { position: fixed; bottom: 25px; right: 25px; z-index: 1000; background: var(--card-bg); border: 2px solid var(--table-border); border-radius: 16px; padding: 15px; width: 220px; box-shadow: 0 10px 35px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
+        .timer-title { font-size: 12px; font-weight: 700; color: var(--secondary-text); text-align: center; }
+        .timer-display { font-size: 26px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); margin: 3px 0; letter-spacing: 0.5px; }
+        .timer-controls, .timer-save-section { display: flex; gap: 8px; justify-content: center; width: 100%; }
+        .btn-timer-start { background: var(--accent); color: white; flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; }
+        .btn-timer-reset { background: var(--secondary-text); color: white; font-size: 12px; padding: 6px; border-radius: 6px; }
+        .btn-timer-save { background: var(--edit-color); color: white; flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; }
+        .timer-select { flex: 1; font-size: 12px; padding: 4px; border-radius: 6px; border: 1px solid var(--table-border); background: var(--bg-color); color: var(--text-color); font-weight: 700; outline: none; }
+
         @media (max-width: 768px) {
             table { min-width: 1100px; font-size: 12px; }
             th, td { padding: 10px 6px; }
@@ -160,6 +169,10 @@
             .dashboard { grid-template-columns: 1fr; }
             .btn-complete-day { padding: 8px 12px; font-size: 16px; background: var(--row-even); border: 2px solid var(--table-border); border-radius: 8px; opacity: 0.8; }
             .app-logo { margin-bottom: 5px; }
+            .timer-widget { bottom: 15px; right: 15px; width: 180px; padding: 10px; gap: 6px; }
+            .timer-display { font-size: 20px; }
+            .btn-timer-start, .btn-timer-reset, .btn-timer-save { font-size: 11px; padding: 5px; }
+            .timer-select { font-size: 11px; padding: 2px; }
         }        
     </style>
 </head>
@@ -226,7 +239,7 @@
         <span id="current-date-info">YKS Kamp Takvimi</span>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
             <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
-            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesapunıyor...</span>
+            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplaşıyor...</span>
             <span id="progress-text">%0 Tamamlandı</span>
         </div>
     </div>
@@ -269,6 +282,19 @@
             <h3>📚 Ders Bazlı Toplam Süre</h3>
             <div class="weekly-grid" id="weekly-summary-grid"></div>
         </div>
+    </div>
+</div>
+
+<div class="timer-widget" id="timer-widget">
+    <div class="timer-title">⏱️ KAMP ÇALIŞMA SAYACI</div>
+    <div class="timer-display" id="timer-display">00:00:00</div>
+    <div class="timer-controls">
+        <button class="btn btn-timer-start" id="timer-start-btn">▶️ Başlat</button>
+        <button class="btn btn-timer-reset" id="timer-reset-btn">🔄 Sıfırla</button>
+    </div>
+    <div class="timer-save-section">
+        <select id="timer-day-select" class="timer-select"></select>
+        <button class="btn btn-timer-save" id="timer-save-btn">💾 Saate Ekle</button>
     </div>
 </div>
 
@@ -326,7 +352,7 @@
         const statsPanel = document.getElementById("stats-panel");
         
         let chartInstance = null;
-        let lineChartInstance = null; // Çizgi grafik nesnesi
+        let lineChartInstance = null; 
         let currentTarget = 8;
         let currentCols = 5; 
         let currentRowCount = 17;
@@ -353,6 +379,28 @@
             currentRowCount = idbSettings.rowCount || 17;
         }
 
+        // Sayaç Gün Dropdown Menüsünü Dinamik Olarak Dolduran Fonksiyon
+        const populateTimerDropdown = () => {
+            const select = document.getElementById("timer-day-select");
+            if (!select) return;
+            select.innerHTML = "";
+            for(let r=0; r<currentRowCount; r++) {
+                const opt = document.createElement("option");
+                opt.value = r;
+                opt.innerText = `${r+1}. Gün`;
+                select.appendChild(opt);
+            }
+            // Otomatik olarak "Bugün" etiketli satırı seçmeye çalışır
+            setTimeout(() => {
+                const todayRow = document.querySelector('.today-highlight');
+                if (todayRow) {
+                    const rowsArray = Array.from(document.querySelectorAll("#table-body tr"));
+                    const tIdx = rowsArray.indexOf(todayRow);
+                    if (tIdx !== -1) select.value = tIdx;
+                }
+            }, 600);
+        };
+
         const renderTableStructure = () => {
             let thHtml = `<th>Tarih</th>`;
             for(let i=0; i<currentCols; i++) {
@@ -371,6 +419,8 @@
             document.getElementById("start-date-picker").value = currentStartDate;
             document.getElementById("daily-target").value = currentTarget;
             document.getElementById("col-count").value = currentCols;
+
+            populateTimerDropdown();
         };
 
         const addRowToDOM = (rowIndex) => {
@@ -396,10 +446,8 @@
             return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), delay); };
         };
 
-        // Geliştirilmiş ve Güçlendirilmiş Saat Hesaplama Fonksiyonu
         const getHoursFromText = (text) => {
             if (!text) return 0;
-            // Farklı tire tiplerini ve bölme işaretlerini standartlaştırır
             const normalizedText = text.replace(/[–—]/g, '-').trim();
             const timeMatch = normalizedText.match(/(\d{1,2})[:\.](\d{2})\s*[-/]\s*(\d{1,2})[:\.](\d{2})/);
             if (timeMatch) {
@@ -409,7 +457,6 @@
                 if (diff < 0) diff += 24 * 60; 
                 return diff / 60;
             }
-            // Yedek Plan: "2.5 Saat" veya doğrudan sayı girildiyse virgülden arındırıp parse eder
             const numMatch = normalizedText.match(/([\d\.,]+)/);
             if (numMatch) return parseFloat(numMatch[0].replace(',', '.')) || 0;
             return 0; 
@@ -457,15 +504,14 @@
             let subjTotalHoursArr = new Array(currentCols).fill(0);
             
             const dailyHoursMap = {};
-            const dailyLabels = []; // Çizgi grafik için gün etiketleri
-            const dailyData = [];   // Çizgi grafik için saat verileri
+            const dailyLabels = []; 
+            const dailyData = [];   
 
             rows.forEach((row, rowIndex) => {
                 let rowTotalHours = 0;
                 let dateCell = row.querySelector('.date-cell');
                 let rowDateStr = dateCell ? dateCell.dataset.fulldate : null; 
                 
-                // Grafik için kısa tarih formatı oluştur (Örn: 24 Mayıs)
                 let shortDateLabel = `Gün ${rowIndex + 1}`;
                 if (dateCell && dateCell.innerText) {
                     const dateWords = dateCell.innerText.split(' ');
@@ -475,7 +521,6 @@
 
                 const rowTasks = row.querySelectorAll(".task-checkbox");
                 
-                // Veri Güvenliği: Sadece aktif sütun sayısı kadar döngü işletilir havada veri kalmaz
                 rowTasks.forEach((box, cIndex) => {
                     if (cIndex >= currentCols) return; 
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${cIndex}"]`);
@@ -494,6 +539,14 @@
                     }
                 });
 
+                // Sayaçtan gelen ekstra süreyi o satırın toplamına ekleme mantığı
+                const extraTimerId = `extra-hours-${rowIndex}`;
+                if (cacheTasks[extraTimerId] && cacheTasks[extraTimerId].hours) {
+                    const extraHrs = cacheTasks[extraTimerId].hours;
+                    rowTotalHours += extraHrs;
+                    completedHours += extraHrs;
+                }
+
                 dailyData.push(rowTotalHours);
                 if (rowDateStr) dailyHoursMap[rowDateStr] = rowTotalHours;
 
@@ -506,7 +559,6 @@
                 }
             });
 
-            // Kesintisiz Gün Serisi (Streak) Hesaplama Mantığı
             let currentStreak = 0;
             const todayZ = new Date(); 
             todayZ.setHours(0,0,0,0);
@@ -549,7 +601,6 @@
             }
             statsPanel.innerHTML = statsHtml;
             
-            // Grafiklerin Karanlık Mod Renk Adaptasyonları
             const isDark = document.documentElement.getAttribute("data-theme") === "dark";
             const gridColor = isDark ? "#334155" : "#dfe6e9";
             const currentTextColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim();
@@ -557,7 +608,6 @@
             Chart.defaults.color = currentTextColor;
             Chart.defaults.font.family = "'Inter', sans-serif";
 
-            // 1. Doughnut Grafik Güncellemesi
             const ctx = document.getElementById('trendChart').getContext('2d');
             const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031'];
             if(chartInstance) chartInstance.destroy();
@@ -567,7 +617,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: currentTextColor } } } }
             });
 
-            // 2. Yeni Eklenen Line (Çizgi) Grafik Gelişimi
             const ctxLine = document.getElementById('lineChart').getContext('2d');
             if(lineChartInstance) lineChartInstance.destroy();
             lineChartInstance = new Chart(ctxLine, {
@@ -688,7 +737,6 @@
             debouncedApplyData(); 
         });
 
-        // Gerçek Zamanlı ve Esnek Mobil Swipe (Kaydırma) Algoritması
         let touchstartX = 0, touchstartY = 0;
         let currentLabel = null;
 
@@ -698,7 +746,7 @@
             touchstartX = e.touches[0].clientX;
             touchstartY = e.touches[0].clientY;
             currentLabel = label;
-            currentLabel.style.transition = "none"; // Sürüklerken gecikmeyi sıfırla
+            currentLabel.style.transition = "none"; 
         }, {passive: true});
 
         tbody.addEventListener("touchmove", (e) => {
@@ -708,7 +756,7 @@
             const diffX = currentX - touchstartX;
             const diffY = Math.abs(currentY - touchstartY);
 
-            if (Math.abs(diffX) > diffY) { // Yatay kaydırma baskınsa basılı tutma hissi ver
+            if (Math.abs(diffX) > diffY) { 
                 const moveX = Math.max(-50, Math.min(50, diffX));
                 currentLabel.style.transform = `translateX(${moveX}px)`;
                 if (moveX > 20) currentLabel.style.color = "var(--accent)";
@@ -734,7 +782,6 @@
                     box.dispatchEvent(new Event("change", { bubbles: true }));
                 }
             }
-            // Başlangıç konumuna yaylanarak geri döndür
             currentLabel.style.transform = "translateX(0px)";
             currentLabel.style.color = "inherit";
             currentLabel = null;
@@ -1105,7 +1152,106 @@
             });
         }
 
-        // Temanın tarayıcı ayarları haricinde ilk açılışta tetiklenmesi için senkronize et
+        // --- Gelişmiş Çalışma Sayacı (Timer) Mantığı ve Yaşam Döngüsü ---
+        let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
+        let isTimerRunning = localStorage.getItem("isTimerRunning") === "true";
+        let timerInterval = null;
+
+        const updateTimerDisplay = () => {
+            const hrs = String(Math.floor(timerSeconds / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById("timer-display").innerText = `${hrs}:${mins}:${secs}`;
+        };
+
+        const startTimer = () => {
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                localStorage.setItem("timerSeconds", timerSeconds);
+                localStorage.setItem("timerLastTimestamp", Date.now());
+                updateTimerDisplay();
+            }, 1000);
+        };
+
+        // Sekme kapandığında veya çöktüğünde geçen süreyi kurtarma mekanizması
+        if (isTimerRunning) {
+            const lastTime = parseInt(localStorage.getItem("timerLastTimestamp")) || Date.now();
+            const elapsed = Math.floor((Date.now() - lastTime) / 1000);
+            if (elapsed > 0) timerSeconds += elapsed;
+            startTimer();
+            document.getElementById("timer-start-btn").innerHTML = "⏸️ Durdur";
+            document.getElementById("timer-start-btn").style.background = "var(--danger-color)";
+        } else {
+            updateTimerDisplay();
+        }
+
+        document.getElementById("timer-start-btn").addEventListener("click", () => {
+            if (!isTimerRunning) {
+                isTimerRunning = true;
+                localStorage.setItem("isTimerRunning", "true");
+                localStorage.setItem("timerLastTimestamp", Date.now());
+                startTimer();
+                document.getElementById("timer-start-btn").innerHTML = "⏸️ Durdur";
+                document.getElementById("timer-start-btn").style.background = "var(--danger-color)";
+            } else {
+                isTimerRunning = false;
+                localStorage.setItem("isTimerRunning", "false");
+                clearInterval(timerInterval);
+                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
+                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+            }
+        });
+
+        document.getElementById("timer-reset-btn").addEventListener("click", () => {
+            if (confirm("Sayacı sıfırlamak istediğine emin misin?")) {
+                isTimerRunning = false;
+                localStorage.setItem("isTimerRunning", "false");
+                clearInterval(timerInterval);
+                timerSeconds = 0;
+                localStorage.setItem("timerSeconds", 0);
+                updateTimerDisplay();
+                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
+                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+            }
+        });
+
+        document.getElementById("timer-save-btn").addEventListener("click", () => {
+            const select = document.getElementById("timer-day-select");
+            const selectedRowIndex = parseInt(select.value);
+            const addedHours = timerSeconds / 3600;
+            
+            if (timerSeconds < 1) {
+                alert("Aktarmak için önce sayacı başlatıp süre kaydetmelisin!");
+                return;
+            }
+
+            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık (${addedHours.toFixed(2)} saat) çalışma süresini ${selectedRowIndex + 1}. Günün toplam saatine eklemek istiyor musun?`)) {
+                const timerId = `extra-hours-${selectedRowIndex}`;
+                const currentData = cacheTasks[timerId] || { hours: 0 };
+                const newHours = (currentData.hours || 0) + addedHours;
+                
+                const taskData = { done: true, hours: newHours, updatedAt: Date.now() };
+                cacheTasks[timerId] = taskData;
+                
+                saveToIDB('tasks', cacheTasks);
+                updateStats();
+                
+                if(database) set(ref(database, `${SHARED_PATH}tasks/` + timerId), taskData).catch(console.error);
+
+                // Aktarımdan sonra sayacı temizle
+                isTimerRunning = false;
+                localStorage.setItem("isTimerRunning", "false");
+                clearInterval(timerInterval);
+                timerSeconds = 0;
+                localStorage.setItem("timerSeconds", 0);
+                updateTimerDisplay();
+                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
+                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+                
+                alert("Süre başarıyla eklendi ve sayaç sıfırlandı!");
+            }
+        });
+
         updateStats();
     }); 
 </script>
