@@ -30,7 +30,7 @@
             --past-day-bg: #162032; --dropdown-hover: #334155;
         }
 
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; padding-bottom: 60px; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; padding-bottom: 80px; }
 
         .sticky-header { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 15px 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); backdrop-filter: blur(8px); border-bottom: 1px solid var(--table-border); }
 
@@ -147,15 +147,17 @@
         .week-item .w-val { font-size: 18px; color: var(--text-color); font-weight: 900; }
         .week-item .w-val span { font-size: 11px; font-weight: 600; color: var(--secondary-text); }
 
-        /* Yeni Eklenen Floating Çalışma Sayacı CSS Detayları */
-        .timer-widget { position: fixed; bottom: 25px; right: 25px; z-index: 1000; background: var(--card-bg); border: 2px solid var(--table-border); border-radius: 16px; padding: 15px; width: 220px; box-shadow: 0 10px 35px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
+        /* Geliştirilmiş ve Genişletilmiş Sayaç Arayüzü */
+        .timer-widget { position: fixed; bottom: 25px; right: 25px; z-index: 1000; background: var(--card-bg); border: 2px solid var(--table-border); border-radius: 16px; padding: 15px; width: 250px; box-shadow: 0 10px 35px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
         .timer-title { font-size: 12px; font-weight: 700; color: var(--secondary-text); text-align: center; }
         .timer-display { font-size: 26px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); margin: 3px 0; letter-spacing: 0.5px; }
-        .timer-controls, .timer-save-section { display: flex; gap: 8px; justify-content: center; width: 100%; }
+        .timer-controls { display: flex; gap: 8px; justify-content: center; width: 100%; }
+        .timer-save-section { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+        .timer-select-container { display: flex; gap: 6px; width: 100%; }
         .btn-timer-start { background: var(--accent); color: white; flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; }
         .btn-timer-reset { background: var(--secondary-text); color: white; font-size: 12px; padding: 6px; border-radius: 6px; }
-        .btn-timer-save { background: var(--edit-color); color: white; flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; }
-        .timer-select { flex: 1; font-size: 12px; padding: 4px; border-radius: 6px; border: 1px solid var(--table-border); background: var(--bg-color); color: var(--text-color); font-weight: 700; outline: none; }
+        .btn-timer-save { background: var(--edit-color); color: white; font-size: 13px; padding: 8px; border-radius: 6px; width: 100%; font-weight: bold; }
+        .timer-select { flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; border: 1px solid var(--table-border); background: var(--bg-color); color: var(--text-color); font-weight: 700; outline: none; width: 50%; text-overflow: ellipsis; overflow: hidden; }
 
         @media (max-width: 768px) {
             table { min-width: 1100px; font-size: 12px; }
@@ -169,10 +171,10 @@
             .dashboard { grid-template-columns: 1fr; }
             .btn-complete-day { padding: 8px 12px; font-size: 16px; background: var(--row-even); border: 2px solid var(--table-border); border-radius: 8px; opacity: 0.8; }
             .app-logo { margin-bottom: 5px; }
-            .timer-widget { bottom: 15px; right: 15px; width: 180px; padding: 10px; gap: 6px; }
-            .timer-display { font-size: 20px; }
-            .btn-timer-start, .btn-timer-reset, .btn-timer-save { font-size: 11px; padding: 5px; }
-            .timer-select { font-size: 11px; padding: 2px; }
+            .timer-widget { bottom: 15px; right: 15px; width: 210px; padding: 10px; gap: 8px; }
+            .timer-display { font-size: 22px; }
+            .btn-timer-start, .btn-timer-reset, .btn-timer-save { font-size: 11px; padding: 6px; }
+            .timer-select { font-size: 11px; padding: 4px; }
         }        
     </style>
 </head>
@@ -239,7 +241,7 @@
         <span id="current-date-info">YKS Kamp Takvimi</span>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
             <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
-            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplaşıyor...</span>
+            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplamıyor...</span>
             <span id="progress-text">%0 Tamamlandı</span>
         </div>
     </div>
@@ -293,7 +295,10 @@
         <button class="btn btn-timer-reset" id="timer-reset-btn">🔄 Sıfırla</button>
     </div>
     <div class="timer-save-section">
-        <select id="timer-day-select" class="timer-select"></select>
+        <div class="timer-select-container">
+            <select id="timer-day-select" class="timer-select" title="Günü Seçin"></select>
+            <select id="timer-lesson-select" class="timer-select" title="Dersi Seçin"></select>
+        </div>
         <button class="btn btn-timer-save" id="timer-save-btn">💾 Saate Ekle</button>
     </div>
 </div>
@@ -379,26 +384,41 @@
             currentRowCount = idbSettings.rowCount || 17;
         }
 
-        // Sayaç Gün Dropdown Menüsünü Dinamik Olarak Dolduran Fonksiyon
-        const populateTimerDropdown = () => {
-            const select = document.getElementById("timer-day-select");
-            if (!select) return;
-            select.innerHTML = "";
+        // Sayaç Menüsündeki Seçenekleri (Gün ve Dinamik Ders İsimlerini) Dolduran Fonksiyon
+        const populateTimerDropdowns = () => {
+            const daySelect = document.getElementById("timer-day-select");
+            const lessonSelect = document.getElementById("timer-lesson-select");
+            if (!daySelect || !lessonSelect) return;
+
+            // 1. Günleri Doldur
+            daySelect.innerHTML = "";
             for(let r=0; r<currentRowCount; r++) {
                 const opt = document.createElement("option");
                 opt.value = r;
                 opt.innerText = `${r+1}. Gün`;
-                select.appendChild(opt);
+                daySelect.appendChild(opt);
             }
-            // Otomatik olarak "Bugün" etiketli satırı seçmeye çalışır
+
+            // 2. Tablodaki Başlıklardan Ders İsimlerini Al ve Menüye Ekle
+            lessonSelect.innerHTML = "";
+            for(let c=0; c<currentCols; c++) {
+                const el = document.getElementById(`th-subj-${c}-text`);
+                const lessonName = el ? el.innerText.trim() : `Ders ${c+1}`;
+                const opt = document.createElement("option");
+                opt.value = c;
+                opt.innerText = lessonName;
+                lessonSelect.appendChild(opt);
+            }
+
+            // Otomatik olarak aktif günü (Bugün) seç
             setTimeout(() => {
                 const todayRow = document.querySelector('.today-highlight');
                 if (todayRow) {
                     const rowsArray = Array.from(document.querySelectorAll("#table-body tr"));
                     const tIdx = rowsArray.indexOf(todayRow);
-                    if (tIdx !== -1) select.value = tIdx;
+                    if (tIdx !== -1) daySelect.value = tIdx;
                 }
-            }, 600);
+            }, 400);
         };
 
         const renderTableStructure = () => {
@@ -420,7 +440,7 @@
             document.getElementById("daily-target").value = currentTarget;
             document.getElementById("col-count").value = currentCols;
 
-            populateTimerDropdown();
+            populateTimerDropdowns();
         };
 
         const addRowToDOM = (rowIndex) => {
@@ -538,14 +558,6 @@
                         remainingHours += currentHeaderHrs;
                     }
                 });
-
-                // Sayaçtan gelen ekstra süreyi o satırın toplamına ekleme mantığı
-                const extraTimerId = `extra-hours-${rowIndex}`;
-                if (cacheTasks[extraTimerId] && cacheTasks[extraTimerId].hours) {
-                    const extraHrs = cacheTasks[extraTimerId].hours;
-                    rowTotalHours += extraHrs;
-                    completedHours += extraHrs;
-                }
 
                 dailyData.push(rowTotalHours);
                 if (rowDateStr) dailyHoursMap[rowDateStr] = rowTotalHours;
@@ -734,6 +746,7 @@
                 const id = el.getAttribute('data-edit-id');
                 if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
             });
+            populateTimerDropdowns(); // Başlıklar yüklenince sayaç menüsünü senkronize et
             debouncedApplyData(); 
         });
 
@@ -853,7 +866,10 @@
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
                 saveCustomText(id, e.target.innerText);
-                if (id.startsWith('th-time-') || id.startsWith('th-subj-')) updateStats();
+                if (id.startsWith('th-time-') || id.startsWith('th-subj-')) {
+                    updateStats();
+                    populateTimerDropdowns(); // Kullanıcı elle başlık değiştirirse sayaç menüsünü anlık güncelle
+                }
             }
         });
 
@@ -1152,7 +1168,7 @@
             });
         }
 
-        // --- Gelişmiş Çalışma Sayacı (Timer) Mantığı ve Yaşam Döngüsü ---
+        // --- Gelişmiş Çalışma Sayacı Mantığı ---
         let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
         let isTimerRunning = localStorage.getItem("isTimerRunning") === "true";
         let timerInterval = null;
@@ -1173,7 +1189,6 @@
             }, 1000);
         };
 
-        // Sekme kapandığında veya çöktüğünde geçen süreyi kurtarma mekanizması
         if (isTimerRunning) {
             const lastTime = parseInt(localStorage.getItem("timerLastTimestamp")) || Date.now();
             const elapsed = Math.floor((Date.now() - lastTime) / 1000);
@@ -1215,9 +1230,13 @@
             }
         });
 
+        // Sayacı Belirli Bir Güne ve Derse (Kutucuğa) Bağlayarak Aktarma Mekanizması
         document.getElementById("timer-save-btn").addEventListener("click", () => {
-            const select = document.getElementById("timer-day-select");
-            const selectedRowIndex = parseInt(select.value);
+            const daySelect = document.getElementById("timer-day-select");
+            const lessonSelect = document.getElementById("timer-lesson-select");
+            
+            const selectedRowIndex = parseInt(daySelect.value);
+            const selectedColIndex = parseInt(lessonSelect.value);
             const addedHours = timerSeconds / 3600;
             
             if (timerSeconds < 1) {
@@ -1225,20 +1244,32 @@
                 return;
             }
 
-            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık (${addedHours.toFixed(2)} saat) çalışma süresini ${selectedRowIndex + 1}. Günün toplam saatine eklemek istiyor musun?`)) {
-                const timerId = `extra-hours-${selectedRowIndex}`;
-                const currentData = cacheTasks[timerId] || { hours: 0 };
-                const newHours = (currentData.hours || 0) + addedHours;
+            const lessonNameEl = document.getElementById(`th-subj-${selectedColIndex}-text`);
+            const lessonName = lessonNameEl ? lessonNameEl.innerText.trim() : `Ders ${selectedColIndex + 1}`;
+
+            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık (${addedHours.toFixed(2)} saat) çalışma süresini\n👉 ${selectedRowIndex + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
+                
+                const taskId = `task-${selectedRowIndex}-${selectedColIndex}`;
+                
+                // Mevcut sütun saat kuralını çek
+                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${selectedColIndex}"]`);
+                const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+
+                // Eğer görev daha önce hiç ellenmemişse ve boşsa, başlangıç saatini 0 kabul et yoksa eski sürenin üstüne biriktir
+                const currentData = cacheTasks[taskId] || { done: false, hours: 0 };
+                let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
+                
+                const newHours = baselineHours + addedHours;
                 
                 const taskData = { done: true, hours: newHours, updatedAt: Date.now() };
-                cacheTasks[timerId] = taskData;
+                cacheTasks[taskId] = taskData;
                 
                 saveToIDB('tasks', cacheTasks);
-                updateStats();
+                applyDataToUI(); // Arayüzü, checkbox durumlarını ve grafikleri anında güncelle
                 
-                if(database) set(ref(database, `${SHARED_PATH}tasks/` + timerId), taskData).catch(console.error);
+                if(database) set(ref(database, `${SHARED_PATH}tasks/` + taskId), taskData).catch(console.error);
 
-                // Aktarımdan sonra sayacı temizle
+                // Aktarım başarılıysa sayacı temizle
                 isTimerRunning = false;
                 localStorage.setItem("isTimerRunning", "false");
                 clearInterval(timerInterval);
@@ -1248,7 +1279,7 @@
                 document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
                 document.getElementById("timer-start-btn").style.background = "var(--accent)";
                 
-                alert("Süre başarıyla eklendi ve sayaç sıfırlandı!");
+                alert(`Süre başarıyla ${lessonName} dersine eklendi ve ilgili kutucuk işaretlendi!`);
             }
         });
 
