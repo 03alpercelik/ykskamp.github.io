@@ -37,7 +37,6 @@
         .controls { max-width: 1300px; margin: 0 auto 15px auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .controls-left, .controls-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-        /* Yeni YKS Logosu */
         .app-logo { font-size: 24px; font-weight: 900; background: linear-gradient(135deg, #6c5ce7, #a29bfe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; margin-right: 15px; display: flex; align-items: center; gap: 5px; }
         .app-logo span { font-size: 20px; -webkit-text-fill-color: initial; }
 
@@ -49,7 +48,6 @@
         
         .dropdown { position: relative; display: inline-block; }
         
-        /* Simetrik Ayarlar Menüsü Güncellemesi */
         .dropdown-content { display: none; position: absolute; right: 0; top: 110%; background-color: var(--card-bg); min-width: 250px; padding: 10px 0; box-shadow: 0px 10px 25px rgba(0,0,0,0.2); border-radius: 12px; z-index: 1000; border: 1px solid var(--table-border); overflow: hidden; }
         .dropdown-content .drop-item { display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 12px 20px; width: 100%; text-align: left; border: none; background: transparent; color: var(--text-color); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; box-sizing: border-box; }
         .dropdown-content .drop-item.has-input { justify-content: space-between; padding-right: 15px; }
@@ -113,9 +111,8 @@
         .btn-complete-day { background: transparent; border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 12px; padding: 3px 6px; transition: all 0.2s; color: var(--text-color); opacity: 0.5; }
         .btn-complete-day:hover { background: var(--accent); color: white; opacity: 1; border-color: var(--accent); }
 
-        .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-        .swiping-right { transform: translateX(12px); color: var(--accent); }
-        .swiping-left { transform: translateX(-12px); color: var(--danger-color); }
+        /* Akıcı Swipe için CSS Geçiş Tanımlaması */
+        .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; user-select: none; }
         .completed-text { text-decoration: line-through; opacity: 0.7; }
         
         .note-input { width: 100%; min-width: 160px; padding: 8px; border: 1px solid var(--table-border); border-radius: 6px; background: var(--card-bg); color: var(--text-color); font-size: 12px; font-family: inherit; resize: vertical; min-height: 40px; box-sizing: border-box; transition: border-color 0.2s; }
@@ -229,7 +226,7 @@
         <span id="current-date-info">YKS Kamp Takvimi</span>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
             <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
-            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplanıyor...</span>
+            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesapunıyor...</span>
             <span id="progress-text">%0 Tamamlandı</span>
         </div>
     </div>
@@ -260,6 +257,12 @@
             <h3>📊 Ders Dağılımı (Saat)</h3>
             <div class="chart-container">
                 <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        <div class="dash-card">
+            <h3>📈 Günlük Çalışma Trendi (Saat)</h3>
+            <div class="chart-container">
+                <canvas id="lineChart"></canvas>
             </div>
         </div>
         <div class="dash-card">
@@ -323,6 +326,7 @@
         const statsPanel = document.getElementById("stats-panel");
         
         let chartInstance = null;
+        let lineChartInstance = null; // Çizgi grafik nesnesi
         let currentTarget = 8;
         let currentCols = 5; 
         let currentRowCount = 17;
@@ -392,9 +396,12 @@
             return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), delay); };
         };
 
+        // Geliştirilmiş ve Güçlendirilmiş Saat Hesaplama Fonksiyonu
         const getHoursFromText = (text) => {
             if (!text) return 0;
-            const timeMatch = text.match(/(\d{1,2})[:\.](\d{2})\s*-\s*(\d{1,2})[:\.](\d{2})/);
+            // Farklı tire tiplerini ve bölme işaretlerini standartlaştırır
+            const normalizedText = text.replace(/[–—]/g, '-').trim();
+            const timeMatch = normalizedText.match(/(\d{1,2})[:\.](\d{2})\s*[-/]\s*(\d{1,2})[:\.](\d{2})/);
             if (timeMatch) {
                 const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
                 const endMins = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
@@ -402,8 +409,9 @@
                 if (diff < 0) diff += 24 * 60; 
                 return diff / 60;
             }
-            const numMatch = text.match(/[\d\.]+/);
-            if (numMatch) return parseFloat(numMatch[0]) || 0;
+            // Yedek Plan: "2.5 Saat" veya doğrudan sayı girildiyse virgülden arındırıp parse eder
+            const numMatch = normalizedText.match(/([\d\.,]+)/);
+            if (numMatch) return parseFloat(numMatch[0].replace(',', '.')) || 0;
             return 0; 
         };
 
@@ -449,14 +457,27 @@
             let subjTotalHoursArr = new Array(currentCols).fill(0);
             
             const dailyHoursMap = {};
+            const dailyLabels = []; // Çizgi grafik için gün etiketleri
+            const dailyData = [];   // Çizgi grafik için saat verileri
 
             rows.forEach((row, rowIndex) => {
                 let rowTotalHours = 0;
                 let dateCell = row.querySelector('.date-cell');
                 let rowDateStr = dateCell ? dateCell.dataset.fulldate : null; 
+                
+                // Grafik için kısa tarih formatı oluştur (Örn: 24 Mayıs)
+                let shortDateLabel = `Gün ${rowIndex + 1}`;
+                if (dateCell && dateCell.innerText) {
+                    const dateWords = dateCell.innerText.split(' ');
+                    if (dateWords.length >= 2) shortDateLabel = `${dateWords[0]} ${dateWords[1]}`;
+                }
+                dailyLabels.push(shortDateLabel);
+
                 const rowTasks = row.querySelectorAll(".task-checkbox");
                 
+                // Veri Güvenliği: Sadece aktif sütun sayısı kadar döngü işletilir havada veri kalmaz
                 rowTasks.forEach((box, cIndex) => {
+                    if (cIndex >= currentCols) return; 
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${cIndex}"]`);
                     const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
                     const currentHeaderHrs = getHoursFromText(timeStr);
@@ -473,6 +494,7 @@
                     }
                 });
 
+                dailyData.push(rowTotalHours);
                 if (rowDateStr) dailyHoursMap[rowDateStr] = rowTotalHours;
 
                 const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
@@ -484,6 +506,7 @@
                 }
             });
 
+            // Kesintisiz Gün Serisi (Streak) Hesaplama Mantığı
             let currentStreak = 0;
             const todayZ = new Date(); 
             todayZ.setHours(0,0,0,0);
@@ -526,14 +549,52 @@
             }
             statsPanel.innerHTML = statsHtml;
             
+            // Grafiklerin Karanlık Mod Renk Adaptasyonları
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            const gridColor = isDark ? "#334155" : "#dfe6e9";
+            const currentTextColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim();
+            
+            Chart.defaults.color = currentTextColor;
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            // 1. Doughnut Grafik Güncellemesi
             const ctx = document.getElementById('trendChart').getContext('2d');
             const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031'];
             if(chartInstance) chartInstance.destroy();
-            Chart.defaults.color = getComputedStyle(document.body).getPropertyValue('--text-color').trim();
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: { labels: subjNames, datasets: [{ data: subjTotalHoursArr, backgroundColor: colors.slice(0, currentCols), borderWidth: 2, borderColor: 'transparent' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                data: { labels: subjNames, datasets: [{ data: subjTotalHoursArr, backgroundColor: colors.slice(0, currentCols), borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: currentTextColor } } } }
+            });
+
+            // 2. Yeni Eklenen Line (Çizgi) Grafik Gelişimi
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            if(lineChartInstance) lineChartInstance.destroy();
+            lineChartInstance = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: 'Günlük Çalışma (Saat)',
+                        data: dailyData,
+                        borderColor: '#6c5ce7',
+                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#00b894',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: currentTextColor } },
+                        y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor }, ticks: { color: currentTextColor } }
+                    }
+                }
             });
 
             const weeklyGrid = document.getElementById('weekly-summary-grid');
@@ -550,7 +611,8 @@
             const totalTasks = rows.length * currentCols;
 
             rows.forEach((row, rowIndex) => {
-                row.querySelectorAll(".task-checkbox").forEach(box => {
+                row.querySelectorAll(".task-checkbox").forEach((box, cIndex) => {
+                    if (cIndex >= currentCols) return;
                     const textSpan = box.nextElementSibling;
                     const taskData = cacheTasks[box.id];
                     const isChecked = taskData && taskData.done === true;
@@ -626,46 +688,56 @@
             debouncedApplyData(); 
         });
 
+        // Gerçek Zamanlı ve Esnek Mobil Swipe (Kaydırma) Algoritması
         let touchstartX = 0, touchstartY = 0;
-        let isScrolling = false;
+        let currentLabel = null;
 
         tbody.addEventListener("touchstart", (e) => {
-            touchstartX = e.changedTouches[0].screenX;
-            touchstartY = e.changedTouches[0].screenY;
-            isScrolling = false;
+            const label = e.target.closest('.task-label');
+            if (!label || isEditMode) return;
+            touchstartX = e.touches[0].clientX;
+            touchstartY = e.touches[0].clientY;
+            currentLabel = label;
+            currentLabel.style.transition = "none"; // Sürüklerken gecikmeyi sıfırla
         }, {passive: true});
 
-        tbody.addEventListener("touchmove", () => {
-            isScrolling = true; 
+        tbody.addEventListener("touchmove", (e) => {
+            if (!currentLabel) return;
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            const diffX = currentX - touchstartX;
+            const diffY = Math.abs(currentY - touchstartY);
+
+            if (Math.abs(diffX) > diffY) { // Yatay kaydırma baskınsa basılı tutma hissi ver
+                const moveX = Math.max(-50, Math.min(50, diffX));
+                currentLabel.style.transform = `translateX(${moveX}px)`;
+                if (moveX > 20) currentLabel.style.color = "var(--accent)";
+                else if (moveX < -20) currentLabel.style.color = "var(--danger-color)";
+                else currentLabel.style.color = "inherit";
+            }
         }, {passive: true});
 
         tbody.addEventListener("touchend", (e) => {
-            if (isScrolling) return; 
+            if (!currentLabel) return;
+            currentLabel.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.25s";
             
-            const touchendX = e.changedTouches[0].screenX;
-            const touchendY = e.changedTouches[0].screenY;
+            const touchendX = e.changedTouches[0].clientX;
             const diffX = touchendX - touchstartX;
-            const diffY = Math.abs(touchendY - touchstartY);
             
-            if (Math.abs(diffX) > 40 && diffY < 30) { 
-                const label = e.target.closest('.task-label');
-                if (label) {
-                    const box = label.querySelector('.task-checkbox');
-                    if (box) {
-                        if (diffX > 0 && !box.checked) { 
-                            box.checked = true;
-                            box.dispatchEvent(new Event("change", { bubbles: true }));
-                            label.classList.add("swiping-right");
-                            setTimeout(() => label.classList.remove("swiping-right"), 250);
-                        } else if (diffX < 0 && box.checked) { 
-                            box.checked = false;
-                            box.dispatchEvent(new Event("change", { bubbles: true }));
-                            label.classList.add("swiping-left");
-                            setTimeout(() => label.classList.remove("swiping-left"), 250);
-                        }
-                    }
+            const box = currentLabel.querySelector('.task-checkbox');
+            if (box && Math.abs(diffX) > 40) {
+                if (diffX > 0 && !box.checked) { 
+                    box.checked = true;
+                    box.dispatchEvent(new Event("change", { bubbles: true }));
+                } else if (diffX < 0 && box.checked) { 
+                    box.checked = false;
+                    box.dispatchEvent(new Event("change", { bubbles: true }));
                 }
             }
+            // Başlangıç konumuna yaylanarak geri döndür
+            currentLabel.style.transform = "translateX(0px)";
+            currentLabel.style.color = "inherit";
+            currentLabel = null;
         });
 
         tbody.addEventListener("change", (e) => {
@@ -839,7 +911,6 @@
                     const data = JSON.parse(event.target.result);
                     if (confirm("Kamp programı yüklenecek ve tablo görseldeki saatlere göre tamamen uyarlanacak. Onaylıyor musun?")) {
                         if (database) {
-                            
                             if (data.tasks !== undefined || data.settings !== undefined || data.customTexts !== undefined) {
                                 if (data.tasks) await set(ref(database, `${SHARED_PATH}tasks`), data.tasks);
                                 if (data.notes) await set(ref(database, `${SHARED_PATH}notes`), data.notes);
@@ -914,7 +985,6 @@
                             return;
                         }
                     }
-                    
                     new Notification(title, options);
                 } else {
                     alert(`🔔 ${title}\n\n${body}`); 
@@ -1035,6 +1105,8 @@
             });
         }
 
+        // Temanın tarayıcı ayarları haricinde ilk açılışta tetiklenmesi için senkronize et
+        updateStats();
     }); 
 </script>
 </body>
