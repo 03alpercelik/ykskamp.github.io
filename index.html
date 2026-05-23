@@ -30,7 +30,7 @@
             --past-day-bg: #162032; --dropdown-hover: #334155;
         }
 
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; padding-bottom: 80px; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); transition: background 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; padding-bottom: 120px; }
 
         .sticky-header { position: sticky; top: 0; z-index: 100; background-color: var(--bg-color); padding: 15px 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); backdrop-filter: blur(8px); border-bottom: 1px solid var(--table-border); }
 
@@ -69,6 +69,7 @@
         .connection-status { font-size: 11px; font-weight: bold; padding: 6px 10px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
         .status-online { background: rgba(0, 184, 148, 0.15); color: var(--accent); }
         .status-offline { background: rgba(255, 118, 117, 0.15); color: var(--danger-color); }
+        .status-syncing { background: rgba(253, 203, 110, 0.15); color: var(--highlight); }
 
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 184, 148, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0); } }
 
@@ -159,12 +160,22 @@
         .week-item .w-val span { font-size: 11px; font-weight: 600; color: var(--secondary-text); }
 
         .timer-widget { position: fixed; bottom: 25px; right: 25px; z-index: 1000; background: var(--card-bg); border: 2px solid var(--table-border); border-radius: 16px; padding: 15px; width: 250px; box-shadow: 0 10px 35px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
-        .timer-title { font-size: 12px; font-weight: 700; color: var(--secondary-text); text-align: center; }
-        .timer-display { font-size: 26px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); margin: 3px 0; letter-spacing: 0.5px; }
+        .timer-widget.minimized { transform: translateY(calc(100% - 40px)); }
+        .timer-header-row { display: flex; justify-content: space-between; align-items: center; }
+        .timer-title { font-size: 12px; font-weight: 700; color: var(--secondary-text); }
+        .timer-minimize-btn { background: none; border: none; color: var(--secondary-text); font-size: 16px; cursor: pointer; padding: 0; line-height: 1; }
+        
+        .timer-display-container { display: flex; justify-content: space-around; align-items: center; }
+        .timer-box { display: flex; flex-direction: column; align-items: center; }
+        .timer-display { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--accent); letter-spacing: 0.5px; }
+        .break-display { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--highlight); }
+        .timer-label { font-size: 10px; color: var(--secondary-text); font-weight: 600; text-transform: uppercase; }
+
         .timer-controls { display: flex; gap: 8px; justify-content: center; width: 100%; }
         .timer-save-section { display: flex; flex-direction: column; gap: 6px; width: 100%; }
         .timer-select-container { display: flex; gap: 6px; width: 100%; }
         .btn-timer-start { background: var(--accent); color: white; flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; }
+        .btn-timer-break { background: var(--highlight); color: #000; font-size: 12px; padding: 6px; border-radius: 6px; font-weight: 700; }
         .btn-timer-reset { background: var(--secondary-text); color: white; font-size: 12px; padding: 6px; border-radius: 6px; }
         .btn-timer-save { background: var(--edit-color); color: white; font-size: 13px; padding: 8px; border-radius: 6px; width: 100%; font-weight: bold; }
         .timer-select { flex: 1; font-size: 12px; padding: 6px; border-radius: 6px; border: 1px solid var(--table-border); background: var(--bg-color); color: var(--text-color); font-weight: 700; outline: none; width: 50%; text-overflow: ellipsis; overflow: hidden; }
@@ -172,19 +183,10 @@
         @media (max-width: 768px) {
             table { min-width: 1100px; font-size: 12px; }
             th, td { padding: 10px 6px; }
-            .time-tag { font-size: 9px; padding: 1px 4px; }
-            .hour-badge { font-size: 10px; padding: 3px 6px; }
-            .note-input { font-size: 11px; padding: 6px; min-width: 100px; min-height: 35px; }
-            .controls { justify-content: center; }
-            .setting-container { width: 100%; justify-content: center; }
-            .stats-container { justify-content: center; }
             .dashboard { grid-template-columns: 1fr; }
-            .btn-complete-day { padding: 8px 12px; font-size: 16px; background: var(--row-even); border: 2px solid var(--table-border); border-radius: 8px; opacity: 0.8; }
-            .app-logo { margin-bottom: 5px; }
-            .timer-widget { bottom: 15px; right: 15px; width: 210px; padding: 10px; gap: 8px; }
-            .timer-display { font-size: 22px; }
-            .btn-timer-start, .btn-timer-reset, .btn-timer-save { font-size: 11px; padding: 6px; }
-            .timer-select { font-size: 11px; padding: 4px; }
+            .btn-complete-day { padding: 8px 12px; font-size: 16px; }
+            .timer-widget { bottom: 15px; right: 15px; width: 230px; padding: 10px; gap: 8px; }
+            .timer-display { font-size: 20px; }
         }        
     </style>
 </head>
@@ -215,30 +217,14 @@
                         </div>
                         <input type="number" id="col-count" value="5" min="1" max="10" class="menu-input">
                     </div>
-                    
                     <div class="menu-divider"></div>
-                    
-                    <button class="drop-item" id="notify-btn">
-                        <span class="icon">🔔</span> <span>Bildirim İzni Ver</span>
-                    </button>
-                    <button class="drop-item" id="test-notify-btn">
-                        <span class="icon">📩</span> <span>Test Bildirimi Gönder</span>
-                    </button>
-                    
+                    <button class="drop-item" id="notify-btn"><span class="icon">🔔</span> <span>Bildirim İzni Ver</span></button>
+                    <button class="drop-item" id="test-notify-btn"><span class="icon">📩</span> <span>Test Bildirimi Gönder</span></button>
                     <div class="menu-divider"></div>
-                    
-                    <button class="drop-item" id="export-btn">
-                        <span class="icon">📥</span> <span>Yedeği İndir</span>
-                    </button>
-                    <button class="drop-item" id="import-trigger-btn">
-                        <span class="icon">📤</span> <span>Yedek Yükle</span>
-                    </button>
-                    
+                    <button class="drop-item" id="export-btn"><span class="icon">📥</span> <span>Yedeği İndir</span></button>
+                    <button class="drop-item" id="import-trigger-btn"><span class="icon">📤</span> <span>Yedek Yükle</span></button>
                     <div class="menu-divider"></div>
-                    
-                    <button class="drop-item danger-item" id="reset-btn">
-                        <span class="icon">🗑️</span> <span>Tabloyu Sıfırla</span>
-                    </button>
+                    <button class="drop-item danger-item" id="reset-btn"><span class="icon">🗑️</span> <span>Tabloyu Sıfırla</span></button>
                 </div>
             </div>
             <input type="file" id="import-file" style="display:none" accept=".json">
@@ -265,8 +251,7 @@
     <div class="table-container">
         <table id="schedule-table">
             <thead>
-                <tr id="header-row">
-                </tr>
+                <tr id="header-row"></tr>
             </thead>
             <tbody id="table-body"></tbody>
         </table>
@@ -280,15 +265,15 @@
     <div class="dashboard">
         <div class="dash-card">
             <h3>📊 Ders Dağılımı (Saat)</h3>
-            <div class="chart-container">
-                <canvas id="trendChart"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="trendChart"></canvas></div>
         </div>
         <div class="dash-card">
             <h3>📈 Günlük Çalışma Trendi (Saat)</h3>
-            <div class="chart-container">
-                <canvas id="lineChart"></canvas>
-            </div>
+            <div class="chart-container"><canvas id="lineChart"></canvas></div>
+        </div>
+        <div class="dash-card">
+            <h3>📅 Haftalık Çalışma Özeti</h3>
+            <div class="weekly-grid" id="weekly-summary-grid-2"></div>
         </div>
         <div class="dash-card">
             <h3>📚 Ders Bazlı Toplam Süre</h3>
@@ -298,11 +283,24 @@
 </div>
 
 <div class="timer-widget" id="timer-widget">
-    <div class="timer-title">⏱️ KAMP ÇALIŞMA SAYACI</div>
-    <div class="timer-display" id="timer-display">00:00:00</div>
+    <div class="timer-header-row">
+        <div class="timer-title">⏱️ ÇALIŞMA SAYACI</div>
+        <button class="timer-minimize-btn" id="minimize-btn">▼</button>
+    </div>
+    <div class="timer-display-container">
+        <div class="timer-box">
+            <div class="timer-display" id="timer-display">00:00:00</div>
+            <div class="timer-label">Odak</div>
+        </div>
+        <div class="timer-box">
+            <div class="break-display" id="break-display">00:00:00</div>
+            <div class="timer-label" style="color: var(--highlight);">Mola</div>
+        </div>
+    </div>
     <div class="timer-controls">
         <button class="btn btn-timer-start" id="timer-start-btn">▶️ Başlat</button>
-        <button class="btn btn-timer-reset" id="timer-reset-btn">🔄 Sıfırla</button>
+        <button class="btn btn-timer-break" id="timer-break-btn">☕ Mola</button>
+        <button class="btn btn-timer-reset" id="timer-reset-btn">🔄</button>
     </div>
     <div class="timer-save-section">
         <div class="timer-select-container">
@@ -315,13 +313,22 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    // Service Worker Kaydı
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Kayıt Hatası:', err));
+        });
+    }
 
     const dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open("YksKampProDB", 1);
+        const req = indexedDB.open("YksKampProDB", 2); // Versiyon artırıldı
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains("kampCache")) { db.createObjectStore("kampCache"); }
+            // Çevrimdışı senkronizasyon kuyruğu eklendi
+            if (!db.objectStoreNames.contains("syncQueue")) { db.createObjectStore("syncQueue", { keyPath: "id", autoIncrement: true }); }
         };
         req.onsuccess = (e) => resolve(e.target.result);
         req.onerror = (e) => reject(e.target.error);
@@ -346,31 +353,35 @@
         } catch(e) { return null; }
     }
 
+    let isOnline = navigator.onLine;
+
+    async function addToSyncQueue(actionType, path, data) {
+        try {
+            const db = await dbPromise;
+            const tx = db.transaction("syncQueue", "readwrite");
+            tx.objectStore("syncQueue").add({ type: actionType, path: path, data: data, timestamp: Date.now() });
+            document.getElementById("connection-status").innerHTML = "🔄 Senkron Bekliyor";
+            document.getElementById("connection-status").className = "connection-status status-syncing";
+        } catch(e) { console.error("Kuyruğa ekleme hatası", e); }
+    }
+
     const firebaseConfig = {
         apiKey: "AIzaSyCtlXFnB8OTQ-P_QKH2fAexX8UlLTRpXcg",
         authDomain: "yks-kamp-13f68.firebaseapp.com",
         databaseURL: "https://yks-kamp-13f68-default-rtdb.firebaseio.com",
-        projectId: "yks-kamp-13f68",
-        storageBucket: "yks-kamp-13f68.firebasestorage.app"
+        projectId: "yks-kamp-13f68"
     };
 
     const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
     const DEFAULT_START_DATE = "2026-05-04";
     
     const DEFAULT_YKS_LESSONS = [
-        { name: "Rutinler", time: "09:30 - 11:30" },
-        { name: "TYT Mat", time: "12:30 - 14:00" },
-        { name: "AYT Mat", time: "14:15 - 15:45" },
-        { name: "AYT Fizik", time: "16:30 - 18:30" },
-        { name: "AYT Kimya", time: "19:30 - 21:00" },
-        { name: "AYT Biyoloji", time: "21:15 - 22:15" },
-        { name: "Türkçe", time: "00:00 - 00:00" },
-        { name: "TYT Biyoloji", time: "00:00 - 00:00" },
-        { name: "TYT Kimya", time: "00:00 - 00:00" },
-        { name: "TYT Fizik", time: "00:00 - 00:00" }
+        { name: "Rutinler", time: "09:30 - 11:30" }, { name: "TYT Mat", time: "12:30 - 14:00" },
+        { name: "AYT Mat", time: "14:15 - 15:45" }, { name: "AYT Fizik", time: "16:30 - 18:30" },
+        { name: "AYT Kimya", time: "19:30 - 21:00" }, { name: "AYT Biyoloji", time: "21:15 - 22:15" }
     ];
 
-    let database, tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
+    let database, tasksRef, notesRef, customTextRef, settingsRef;
     
     document.addEventListener("DOMContentLoaded", async () => {
         const tbody = document.getElementById("table-body");
@@ -379,19 +390,13 @@
         const progressText = document.getElementById("progress-text");
         const statsPanel = document.getElementById("stats-panel");
         
-        let chartInstance = null;
-        let lineChartInstance = null; 
-        let currentTarget = 8;
-        let currentCols = 5; 
-        let currentRowCount = 17;
+        let chartInstance = null; let lineChartInstance = null; 
+        let currentTarget = 8; let currentCols = 5; let currentRowCount = 17;
         let currentStartDate = DEFAULT_START_DATE;
-
-        let cacheTasks = {};
-        let cacheNotes = {};
-        let cacheCustomTexts = {};
+        let cacheTasks = {}; let cacheNotes = {}; let cacheCustomTexts = {};
         let isEditMode = false;
 
-        const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+        const days = ["Pazar", "Pzt", "Salı", "Çarş", "Perş", "Cuma", "Cmt"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
         const [idbTasks, idbNotes, idbTexts, idbSettings] = await Promise.all([
@@ -407,6 +412,51 @@
             currentRowCount = idbSettings.rowCount || 17;
         }
 
+        const app = initializeApp(firebaseConfig);
+        database = getDatabase(app);
+        
+        async function syncFirebaseSet(path, data) {
+            if (isOnline) {
+                try { await set(ref(database, path), data); } 
+                catch (e) { addToSyncQueue('set', path, data); }
+            } else { addToSyncQueue('set', path, data); }
+        }
+        async function syncFirebaseUpdate(path, data) {
+            if (isOnline) {
+                try { await update(ref(database, path), data); } 
+                catch (e) { addToSyncQueue('update', path, data); }
+            } else { addToSyncQueue('update', path, data); }
+        }
+
+        async function processSyncQueue() {
+            if (!isOnline) return;
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction("syncQueue", "readwrite");
+                const store = tx.objectStore("syncQueue");
+                const req = store.getAll();
+                req.onsuccess = async () => {
+                    for (let item of req.result) {
+                        try {
+                            if (item.type === 'set') await set(ref(database, item.path), item.data);
+                            else if (item.type === 'update') await update(ref(database, item.path), item.data);
+                            const delTx = db.transaction("syncQueue", "readwrite");
+                            delTx.objectStore("syncQueue").delete(item.id);
+                        } catch(e) {}
+                    }
+                    const cs = document.getElementById("connection-status");
+                    cs.innerHTML = "🟢 Çevrimiçi"; cs.className = "connection-status status-online";
+                }
+            } catch(e) { console.error("Kuyruk işleme hatası", e); }
+        }
+
+        window.addEventListener('online', () => { isOnline = true; processSyncQueue(); });
+        window.addEventListener('offline', () => { 
+            isOnline = false; 
+            const cs = document.getElementById("connection-status");
+            cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline";
+        });
+
         const populateTimerDropdowns = () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
@@ -414,20 +464,14 @@
 
             daySelect.innerHTML = "";
             for(let r=0; r<currentRowCount; r++) {
-                const opt = document.createElement("option");
-                opt.value = r;
-                opt.innerText = `${r+1}. Gün`;
-                daySelect.appendChild(opt);
+                daySelect.appendChild(new Option(`${r+1}. Gün`, r));
             }
 
             lessonSelect.innerHTML = "";
             for(let c=0; c<currentCols; c++) {
                 const el = document.getElementById(`th-subj-${c}-text`);
                 const lessonName = el ? el.innerText.trim() : (DEFAULT_YKS_LESSONS[c] ? DEFAULT_YKS_LESSONS[c].name : `Ders ${c+1}`);
-                const opt = document.createElement("option");
-                opt.value = c;
-                opt.innerText = lessonName;
-                lessonSelect.appendChild(opt);
+                lessonSelect.appendChild(new Option(lessonName, c));
             }
 
             setTimeout(() => {
@@ -444,47 +488,33 @@
             let thHtml = `<th>Tarih</th>`;
             for(let i=0; i<currentCols; i++) {
                 const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
-                const subjDef = defaultDef.name;
-                const timeDef = defaultDef.time;
-                thHtml += `<th><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${subjDef}</span> <span class="time-tag editable-text" data-edit-id="th-time-${i}">${timeDef}</span></th>`;
+                thHtml += `<th><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${defaultDef.name}</span> <span class="time-tag editable-text" data-edit-id="th-time-${i}">${defaultDef.time}</span></th>`;
             }
             thHtml += `<th>Günün Notu</th><th>Toplam Saat</th>`;
             headerRow.innerHTML = thHtml;
 
             tbody.innerHTML = "";
-            for(let r=0; r<currentRowCount; r++) addRowToDOM(r);
+            for(let r=0; r<currentRowCount; r++) {
+                const tr = document.createElement("tr");
+                let html = `<td><div class="date-wrapper"><span class="date-cell" style="font-weight: 600;"></span><button class="btn-complete-day" title="Tüm Günü Tamamla/Temizle">✅</button></div></td>`;
+                for (let c = 0; c < currentCols; c++) {
+                    html += `<td><div class="task-label"><input type="checkbox" id="task-${r}-${c}" class="task-checkbox"><span class="task-text editable-text" data-edit-id="task-text-${r}-${c}">Ders/Konu Ekle</span><span class="cell-timer-container" id="timer-badge-${r}-${c}"></span></div></td>`;
+                }
+                html += `<td><textarea class="note-input" id="note-${r+1}" placeholder="Günlük not..."></textarea></td><td><span class="hour-badge" id="hour-${r+1}">0 Saat</span></td>`;
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            }
 
             if(isEditMode) document.querySelectorAll('.editable-text').forEach(el => el.setAttribute("contenteditable", "true"));
-            
             document.getElementById("start-date-picker").value = currentStartDate;
             document.getElementById("daily-target").value = currentTarget;
             document.getElementById("col-count").value = currentCols;
-
             populateTimerDropdowns();
-        };
-
-        const addRowToDOM = (rowIndex) => {
-            const tr = document.createElement("tr");
-            let html = `<td><div class="date-wrapper"><span class="date-cell" style="font-weight: 600;"></span><button class="btn-complete-day" title="Tüm Günü Tamamla/Temizle">✅</button></div></td>`;
-            
-            for (let c = 0; c < currentCols; c++) {
-                const taskId = `task-${rowIndex}-${c}`;
-                const editId = `task-text-${rowIndex}-${c}`;
-                html += `<td><div class="task-label"><input type="checkbox" id="${taskId}" class="task-checkbox"><span class="task-text editable-text" data-edit-id="${editId}">Ders/Konu Ekle</span><span class="cell-timer-container" id="timer-badge-${rowIndex}-${c}"></span></div></td>`;
-            }
-
-            const dayCounter = rowIndex + 1;
-            html += `<td><textarea class="note-input" id="note-${dayCounter}" placeholder="Günlük not..."></textarea></td><td><span class="hour-badge" id="hour-${dayCounter}">0 Saat</span></td>`;
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
         };
 
         renderTableStructure();
         
-        const debounce = (func, delay) => {
-            let timeout;
-            return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), delay); };
-        };
+        const debounce = (func, delay) => { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), delay); }; };
 
         const getHoursFromText = (text) => {
             if (!text) return 0;
@@ -493,8 +523,7 @@
             if (timeMatch) {
                 const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
                 const endMins = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
-                let diff = endMins - startMins;
-                if (diff < 0) diff += 24 * 60; 
+                let diff = endMins - startMins; if (diff < 0) diff += 24 * 60; 
                 return diff / 60;
             }
             const numMatch = normalizedText.match(/([\d\.,]+)/);
@@ -502,12 +531,7 @@
             return 0; 
         };
 
-        const toDateStr = (d) => {
-             const year = d.getFullYear();
-             const month = String(d.getMonth() + 1).padStart(2, '0');
-             const day = String(d.getDate()).padStart(2, '0');
-             return `${year}-${month}-${day}`;
-        };
+        const toDateStr = (d) => { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
         const updateDatesInTable = () => {
             const parts = currentStartDate.split('-');
@@ -516,16 +540,12 @@
             const todayZero = new Date(); todayZero.setHours(0,0,0,0);
             
             dateCells.forEach((cell, index) => {
-                const rowDate = new Date(startDateObj);
-                rowDate.setDate(rowDate.getDate() + index);
-                
-                const dateText = `${rowDate.getDate()} ${months[rowDate.getMonth()]} ${days[rowDate.getDay()]}`;
-                cell.innerText = dateText;
+                const rowDate = new Date(startDateObj); rowDate.setDate(rowDate.getDate() + index);
+                cell.innerText = `${rowDate.getDate()} ${months[rowDate.getMonth()]} ${days[rowDate.getDay()]}`;
                 cell.dataset.fulldate = toDateStr(rowDate);
                 
                 const tr = cell.closest('tr');
                 tr.classList.remove("today-highlight", "past-day");
-                
                 if (rowDate.getTime() === todayZero.getTime()) {
                     tr.classList.add("today-highlight");
                     if (index === 0 || !tr.hasAttribute("data-scrolled")) {
@@ -551,42 +571,25 @@
                 let rowTotalHours = 0;
                 let dateCell = row.querySelector('.date-cell');
                 let rowDateStr = dateCell ? dateCell.dataset.fulldate : null; 
-                
-                let shortDateLabel = `Gün ${rowIndex + 1}`;
-                if (dateCell && dateCell.innerText) {
-                    const dateWords = dateCell.innerText.split(' ');
-                    if (dateWords.length >= 2) shortDateLabel = `${dateWords[0]} ${dateWords[1]}`;
-                }
-                dailyLabels.push(shortDateLabel);
+                dailyLabels.push(`G. ${rowIndex + 1}`);
 
-                const rowTasks = row.querySelectorAll(".task-checkbox");
-                
-                rowTasks.forEach((box, cIndex) => {
+                row.querySelectorAll(".task-checkbox").forEach((box, cIndex) => {
                     if (cIndex >= currentCols) return; 
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${cIndex}"]`);
-                    const timeStr = headerTimeSpan ? headerTimeSpan.innerText : "";
-                    const currentHeaderHrs = getHoursFromText(timeStr);
-                    
+                    const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
                     subjTotals[cIndex]++;
                     
                     const taskData = cacheTasks[box.id];
-                    
                     const badgeContainer = document.getElementById(`timer-badge-${rowIndex}-${cIndex}`);
                     if (badgeContainer) {
-                        if (taskData && taskData.hours !== undefined && taskData.hours > 0) {
-                            badgeContainer.innerHTML = `<span class="cell-timer-badge">${taskData.hours.toFixed(1)}s</span>`;
-                        } else {
-                            badgeContainer.innerHTML = "";
-                        }
+                        badgeContainer.innerHTML = (taskData && taskData.hours > 0) ? `<span class="cell-timer-badge">${taskData.hours.toFixed(1)}s</span>` : "";
                     }
 
                     if (box.checked) {
                         const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
                         rowTotalHours += hrs; completedHours += hrs;
                         subjStats[cIndex]++; subjTotalHoursArr[cIndex] += hrs;
-                    } else {
-                        remainingHours += currentHeaderHrs;
-                    }
+                    } else { remainingHours += currentHeaderHrs; }
                 });
 
                 dailyData.push(rowTotalHours);
@@ -601,39 +604,31 @@
                 }
             });
 
+            // Gelişmiş Seri Mantığı (Düzeltildi)
             let currentStreak = 0;
             const todayZ = new Date(); todayZ.setHours(0,0,0,0);
-            
             const partsStr = currentStartDate.split('-');
             const startD = new Date(partsStr[0], partsStr[1]-1, partsStr[2]);
             
             let checkD = new Date(todayZ);
-            
             let todayHrs = dailyHoursMap[toDateStr(todayZ)] || 0;
-            if (todayHrs < currentTarget && checkD > startD) {
-                checkD.setDate(checkD.getDate() - 1);
-            }
+            
+            // Eğer bugün tamamlanmamışsa, düne bakmaya başla
+            if (todayHrs < currentTarget) checkD.setDate(checkD.getDate() - 1);
 
             while(checkD >= startD) {
                 let dStr = toDateStr(checkD);
                 let hrs = dailyHoursMap[dStr] || 0;
-
                 if (hrs >= currentTarget) {
                     currentStreak++;
-                } else {
-                    break; 
-                }
-                checkD.setDate(checkD.getDate() - 1); 
+                    checkD.setDate(checkD.getDate() - 1); 
+                } else { break; } // Hedef tutmadığı an seri kopar
             }
 
             const streakEl = document.getElementById('streak-counter');
             if (streakEl) {
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
-                if (currentStreak > 0) {
-                    streakEl.classList.add('streak-active');
-                } else {
-                    streakEl.classList.remove('streak-active');
-                }
+                streakEl.classList.toggle('streak-active', currentStreak > 0);
             }
 
             const subjNames = [];
@@ -651,54 +646,55 @@
             
             const isDark = document.documentElement.getAttribute("data-theme") === "dark";
             const gridColor = isDark ? "#334155" : "#dfe6e9";
-            const currentTextColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim();
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim();
             
-            Chart.defaults.color = currentTextColor;
+            Chart.defaults.color = textColor;
             Chart.defaults.font.family = "'Inter', sans-serif";
 
-            const ctx = document.getElementById('trendChart').getContext('2d');
             const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031'];
             if(chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
+            chartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
                 type: 'doughnut',
                 data: { labels: subjNames, datasets: [{ data: subjTotalHoursArr, backgroundColor: colors.slice(0, currentCols), borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: currentTextColor } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor } } } }
             });
 
-            const ctxLine = document.getElementById('lineChart').getContext('2d');
             if(lineChartInstance) lineChartInstance.destroy();
-            lineChartInstance = new Chart(ctxLine, {
+            lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: dailyLabels,
                     datasets: [{
-                        label: 'Günlük Çalışma (Saat)',
-                        data: dailyData,
-                        borderColor: '#6c5ce7',
-                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.3,
-                        fill: true,
-                        pointBackgroundColor: '#00b894',
-                        pointRadius: 4
+                        label: 'Günlük Çalışma (Saat)', data: dailyData,
+                        borderColor: '#6c5ce7', backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)',
+                        borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#00b894', pointRadius: 4
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: gridColor }, ticks: { color: currentTextColor } },
-                        y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor }, ticks: { color: currentTextColor } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { x: { grid: { color: gridColor } }, y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor } } } }
             });
 
+            // Ders Bazlı Özet
             const weeklyGrid = document.getElementById('weekly-summary-grid');
             weeklyGrid.innerHTML = "";
             subjNames.forEach((name, i) => {
                 weeklyGrid.innerHTML += `<div class="week-item"><span class="w-title">${name}</span><span class="w-val">${subjTotalHoursArr[i].toFixed(1)} <span>Saat</span></span></div>`;
             });
+
+            // Yeni: Haftalık Çalışma Özeti
+            const weekSummaryGrid = document.getElementById('weekly-summary-grid-2');
+            if (weekSummaryGrid) {
+                let weeklyHtml = "";
+                let weekSum = 0; let currentWeek = 1;
+                for (let i = 0; i < dailyData.length; i++) {
+                   weekSum += dailyData[i];
+                   if ((i + 1) % 7 === 0 || i === dailyData.length - 1) {
+                       weeklyHtml += `<div class="week-item"><span class="w-title">${currentWeek}. Hafta</span><span class="w-val">${weekSum.toFixed(1)} <span>Saat</span></span></div>`;
+                       currentWeek++; weekSum = 0;
+                   }
+                }
+                weekSummaryGrid.innerHTML = weeklyHtml;
+            }
         };
 
         const applyDataToUI = () => {
@@ -720,11 +716,7 @@
 
                 row.querySelectorAll('.editable-text').forEach(el => {
                     const id = el.getAttribute('data-edit-id');
-                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) {
-                        el.innerText = cacheCustomTexts[id];
-                    } else if (!cacheCustomTexts[id] && document.activeElement !== el && id.startsWith('task-text')) {
-                         if(el.innerText !== "Ders/Konu Ekle") el.innerText = "Ders/Konu Ekle";
-                    }
+                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) { el.innerText = cacheCustomTexts[id]; }
                 });
 
                 row.querySelectorAll('.note-input').forEach(input => {
@@ -738,12 +730,8 @@
             updateStats();
         };
         const debouncedApplyData = debounce(applyDataToUI, 150);
-        
         applyDataToUI(); 
 
-        const app = initializeApp(firebaseConfig);
-        database = getDatabase(app);
-        userRootRef = ref(database, SHARED_PATH);
         tasksRef = ref(database, `${SHARED_PATH}tasks/`);
         notesRef = ref(database, `${SHARED_PATH}notes/`);
         customTextRef = ref(database, `${SHARED_PATH}customTexts/`);
@@ -751,91 +739,33 @@
         const connectedRef = ref(database, '.info/connected');
 
         onValue(connectedRef, (snap) => {
-            const cs = document.getElementById("connection-status");
-            if (snap.val() === true) { cs.innerHTML = "🟢 Çevrimiçi"; cs.className = "connection-status status-online"; } 
-            else { cs.innerHTML = "🔴 Çevrimdışı"; cs.className = "connection-status status-offline"; }
+            if (snap.val() === true) { isOnline = true; processSyncQueue(); }
         });
 
         onValue(settingsRef, (snapshot) => {
             const s = snapshot.val() || {};
-            const newCols = s.colCount || 5;
-            const newRows = s.rowCount || 17;
-            currentStartDate = s.startDate || DEFAULT_START_DATE;
-            currentTarget = s.targetHours || 8;
-
+            const newCols = s.colCount || 5; const newRows = s.rowCount || 17;
+            currentStartDate = s.startDate || DEFAULT_START_DATE; currentTarget = s.targetHours || 8;
             let needsRebuild = false;
             if(newCols !== currentCols) { currentCols = newCols; needsRebuild = true; }
             if(newRows !== currentRowCount) { currentRowCount = newRows; needsRebuild = true; }
-            
             if(needsRebuild) renderTableStructure();
-
-            saveToIDB('settings', s);
-            debouncedApplyData();
+            saveToIDB('settings', s); debouncedApplyData();
         });
 
         onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; saveToIDB('tasks', cacheTasks); debouncedApplyData(); });
         onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; saveToIDB('notes', cacheNotes); debouncedApplyData(); });
         onValue(customTextRef, (snapshot) => { 
-            cacheCustomTexts = snapshot.val() || {}; 
-            saveToIDB('customTexts', cacheCustomTexts);
+            cacheCustomTexts = snapshot.val() || {}; saveToIDB('customTexts', cacheCustomTexts);
             document.querySelectorAll('thead .editable-text').forEach(el => {
                 const id = el.getAttribute('data-edit-id');
                 if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
             });
-            populateTimerDropdowns(); 
-            debouncedApplyData(); 
+            populateTimerDropdowns(); debouncedApplyData(); 
         });
 
-        let touchstartX = 0, touchstartY = 0;
-        let currentLabel = null;
-
-        tbody.addEventListener("touchstart", (e) => {
-            const label = e.target.closest('.task-label');
-            if (!label || isEditMode) return;
-            touchstartX = e.touches[0].clientX;
-            touchstartY = e.touches[0].clientY;
-            currentLabel = label;
-            currentLabel.style.transition = "none"; 
-        }, {passive: true});
-
-        tbody.addEventListener("touchmove", (e) => {
-            if (!currentLabel) return;
-            const currentX = e.touches[0].clientX;
-            const currentY = e.touches[0].clientY;
-            const diffX = currentX - touchstartX;
-            const diffY = Math.abs(currentY - touchstartY);
-
-            if (Math.abs(diffX) > diffY) { 
-                const moveX = Math.max(-50, Math.min(50, diffX));
-                currentLabel.style.transform = `translateX(${moveX}px)`;
-                if (moveX > 20) currentLabel.style.color = "var(--accent)";
-                else if (moveX < -20) currentLabel.style.color = "var(--danger-color)";
-                else currentLabel.style.color = "inherit";
-            }
-        }, {passive: true});
-
-        tbody.addEventListener("touchend", (e) => {
-            if (!currentLabel) return;
-            currentLabel.style.transition = "transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.25s";
-            
-            const touchendX = e.changedTouches[0].clientX;
-            const diffX = touchendX - touchstartX;
-            
-            const box = currentLabel.querySelector('.task-checkbox');
-            if (box && Math.abs(diffX) > 40) {
-                if (diffX > 0 && !box.checked) { 
-                    box.checked = true;
-                    box.dispatchEvent(new Event("change", { bubbles: true }));
-                } else if (diffX < 0 && box.checked) { 
-                    box.checked = false;
-                    box.dispatchEvent(new Event("change", { bubbles: true }));
-                }
-            }
-            currentLabel.style.transform = "translateX(0px)";
-            currentLabel.style.color = "inherit";
-            currentLabel = null;
-        });
-
+        // Kilit Değişiklik: Swipe/Kaydırma event listener'ları TIKLAMA HASSASİYETİ İÇİN TAMAMEN KALDIRILDI.
+        
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 const isChecked = e.target.checked;
@@ -845,21 +775,17 @@
                 let taskData = null;
                 
                 if (isChecked) {
-                    const parts = taskId.split('-'); 
-                    const colIndex = parseInt(parts[2]);
+                    const colIndex = parseInt(taskId.split('-')[2]);
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                    
                     const existingData = cacheTasks[taskId];
                     const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
                     const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
-
                     taskData = { done: true, hours: safeHours, updatedAt: Date.now() };
                 }
                 
                 if(taskData) cacheTasks[taskId] = taskData; else delete cacheTasks[taskId];
-                saveToIDB('tasks', cacheTasks);
-                updateStats(); 
-                if(database) set(ref(database, `${SHARED_PATH}tasks/` + taskId), taskData).catch(console.error); 
+                saveToIDB('tasks', cacheTasks); updateStats(); 
+                syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData); 
             }
         });
 
@@ -874,82 +800,62 @@
                 const rowTasks = tr.querySelectorAll(".task-checkbox");
                 let allChecked = Array.from(rowTasks).every(box => box.checked);
                 let newState = !allChecked;
-                let updates = {};
-                const now = Date.now();
+                let updates = {}; const now = Date.now();
                 
                 rowTasks.forEach(box => { 
-                    const parts = box.id.split('-');
-                    const colIndex = parseInt(parts[2]);
+                    const colIndex = parseInt(box.id.split('-')[2]);
                     if (newState) {
                         const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
                         const existingData = cacheTasks[box.id];
                         const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
                         const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
-
                         const data = { done: true, hours: safeHours, updatedAt: now };
-                        updates[box.id] = data;
-                        cacheTasks[box.id] = data;
+                        updates[box.id] = data; cacheTasks[box.id] = data;
                     } else {
-                        updates[box.id] = null;
-                        delete cacheTasks[box.id];
+                        updates[box.id] = null; delete cacheTasks[box.id];
                     }
                     box.checked = newState; 
                     box.nextElementSibling?.classList.toggle("completed-text", newState);
                 });
                 
-                saveToIDB('tasks', cacheTasks);
-                updateStats();
-                if(database) update(tasksRef, updates).catch(console.error); 
+                saveToIDB('tasks', cacheTasks); updateStats();
+                syncFirebaseUpdate(`${SHARED_PATH}tasks/`, updates); 
             }
         });
 
         const saveCustomText = debounce((id, text) => { 
             cacheCustomTexts[id] = text; saveToIDB('customTexts', cacheCustomTexts);
-            if(database) set(ref(database, `${SHARED_PATH}customTexts/` + id), text).catch(console.error); 
+            syncFirebaseSet(`${SHARED_PATH}customTexts/${id}`, text); 
         }, 500);
 
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
                 saveCustomText(id, e.target.innerText);
-                if (id.startsWith('th-time-') || id.startsWith('th-subj-')) {
-                    updateStats();
-                    populateTimerDropdowns(); 
-                }
+                if (id.startsWith('th-time-') || id.startsWith('th-subj-')) { updateStats(); populateTimerDropdowns(); }
             }
         });
 
         const saveNote = debounce((id, value) => { 
             cacheNotes[id] = value; saveToIDB('notes', cacheNotes);
-            if(database) set(ref(database, `${SHARED_PATH}notes/` + id), value).catch(console.error); 
+            syncFirebaseSet(`${SHARED_PATH}notes/${id}`, value); 
         }, 800);
         tbody.addEventListener("input", (e) => { if (e.target.classList.contains("note-input")) saveNote(e.target.id, e.target.value); });
 
-        // Girdiler değiştiğinde Firebase dinleyicisi tetiklenene kadar arayüzün kilitlenmemesi için lokal önbellek güncellemeleri güçlendirildi
         document.getElementById("start-date-picker").addEventListener("change", (e) => { 
-            currentStartDate = e.target.value;
-            if(database) set(ref(database, `${SHARED_PATH}settings/startDate`), e.target.value).catch(console.error); 
+            currentStartDate = e.target.value; syncFirebaseSet(`${SHARED_PATH}settings/startDate`, e.target.value); 
         });
-        
         document.getElementById("daily-target").addEventListener("change", (e) => { 
-            currentTarget = Number(e.target.value);
-            updateStats();
-            if(database) set(ref(database, `${SHARED_PATH}settings/targetHours`), currentTarget).catch(console.error); 
+            currentTarget = Number(e.target.value); updateStats(); syncFirebaseSet(`${SHARED_PATH}settings/targetHours`, currentTarget); 
         });
-        
         document.getElementById("col-count").addEventListener("change", (e) => { 
-            let val = Number(e.target.value); 
-            if(val < 1) val = 1; if(val > 10) val = 10;
-            currentCols = val;
-            renderTableStructure();
-            applyDataToUI();
-            if(database) set(ref(database, `${SHARED_PATH}settings/colCount`), val).catch(console.error); 
+            let val = Number(e.target.value); if(val < 1) val = 1; if(val > 10) val = 10;
+            currentCols = val; renderTableStructure(); applyDataToUI(); syncFirebaseSet(`${SHARED_PATH}settings/colCount`, val); 
         });
-
-        document.getElementById("add-row-btn").addEventListener("click", () => { if(database) set(ref(database, `${SHARED_PATH}settings/rowCount`), currentRowCount + 1).catch(console.error); });
+        document.getElementById("add-row-btn").addEventListener("click", () => { syncFirebaseSet(`${SHARED_PATH}settings/rowCount`, currentRowCount + 1); });
         document.getElementById("del-row-btn").addEventListener("click", () => {
             if (currentRowCount <= 7) return alert("7 günün altına düşülemez!");
-            if(confirm("Son satırı silmek istediğinize emin misiniz?")) if(database) set(ref(database, `${SHARED_PATH}settings/rowCount`), currentRowCount - 1).catch(console.error);
+            if(confirm("Son satırı silmek istediğinize emin misiniz?")) syncFirebaseSet(`${SHARED_PATH}settings/rowCount`, currentRowCount - 1);
         });
 
         const editBtn = document.getElementById("edit-btn");
@@ -967,85 +873,14 @@
             }
         });
 
-        const currentTheme = localStorage.getItem("theme") || "light";
-        document.documentElement.setAttribute("data-theme", currentTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
             const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", theme);
-            localStorage.setItem("theme", theme);
-            updateStats(); 
+            localStorage.setItem("theme", theme); updateStats(); 
         });
         
-        document.getElementById('settings-toggle').addEventListener('click', (e) => {
-            e.stopPropagation(); document.getElementById('settings-menu').classList.toggle('show-dropdown');
-        });
-        window.addEventListener('click', (e) => {
-            if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown');
-        });
-
-        document.getElementById('reset-btn').addEventListener('click', async () => {
-            if (confirm("Tüm tablo verileri, tamamlanan görevler ve notlar KALICI olarak silinecek. Emin misin?")) {
-                if (database) {
-                    try {
-                        await set(ref(database, `${SHARED_PATH}tasks`), null);
-                        await set(ref(database, `${SHARED_PATH}notes`), null);
-                        await set(ref(database, `${SHARED_PATH}customTexts`), null);
-                        alert("Tablo başarıyla sıfırlandı!");
-                    } catch (error) {
-                        console.error("Sıfırlama hatası:", error);
-                        alert("Sıfırlama sırasında bir hata oluştu.");
-                    }
-                }
-            }
-        });
-
-        document.getElementById('export-btn').addEventListener('click', () => {
-            const backupData = {
-                tasks: cacheTasks,
-                notes: cacheNotes,
-                customTexts: cacheCustomTexts,
-                settings: { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount }
-            };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "yks_kamp_yedek_" + new Date().toISOString().split('T')[0] + ".json");
-            document.body.appendChild(downloadAnchorNode); 
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        });
-
-        document.getElementById('import-trigger-btn').addEventListener('click', () => {
-            document.getElementById('import-file').click();
-        });
-
-        document.getElementById('import-file').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    if (confirm("Kamp programı yüklenecek ve tablo görseldeki saatlere göre tamamen uyarlanacak. Onaylıyor musun?")) {
-                        if (database) {
-                            if (data.tasks !== undefined || data.settings !== undefined || data.customTexts !== undefined) {
-                                if (data.tasks) await set(ref(database, `${SHARED_PATH}tasks`), data.tasks);
-                                if (data.notes) await set(ref(database, `${SHARED_PATH}notes`), data.notes);
-                                if (data.customTexts) await set(ref(database, `${SHARED_PATH}customTexts`), data.customTexts);
-                                if (data.settings) await set(ref(database, `${SHARED_PATH}settings`), data.settings);
-                            }
-                            alert("Sistem başarıyla yeni programına güncellendi! Sayfa yenileniyor...");
-                            window.location.reload(); 
-                        }
-                    }
-                } catch (err) {
-                    console.error("Yükleme hatası:", err);
-                    alert("Yükleme başarısız oldu. Lütfen geçerli bir JSON dosyası seç.");
-                }
-            };
-            reader.readAsText(file);
-            e.target.value = ''; 
-        });
+        document.getElementById('settings-toggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('settings-menu').classList.toggle('show-dropdown'); });
+        window.addEventListener('click', (e) => { if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown'); });
 
         async function triggerNotification(title, body) {
             try {
@@ -1063,16 +898,14 @@
         async function sendTodayNotification() {
             const todayRow = document.querySelector('.today-highlight');
             const motivasyonSozleri = [
-                "Bugün, gelecekteki senin sana teşekkür edeceği bir day olsun! 🚀",
+                "Bugün, gelecekteki senin sana teşekkür edeceği bir gün olsun! 🚀",
                 "Başarı, her gün tekrarlanan küçük çabaların toplamıdır. 💪",
+                "Almanya'da Informatik hayaline bir adım daha yaklaştın! Devam et! 🇩🇪💻",
                 "Zorluklar, sıradan insanları sıra dışı bir kadere hazırlar. 🌟"
             ];
             const rastgeleSoz = motivasyonSozleri[Math.floor(Math.random() * motivasyonSozleri.length)];
 
-            if (!todayRow) {
-                await triggerNotification("📌 YKS Kamp Takip", `Bugün için bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
-                return;
-            }
+            if (!todayRow) return await triggerNotification("📌 YKS Kamp Takip", `Bugün için bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
 
             let tasksList = [];
             const tasks = todayRow.querySelectorAll('.task-text');
@@ -1087,150 +920,146 @@
                 }
             });
 
-            let bodyText = tasksList.join('\n') || "Bugün için özel bir görev girilmemiş.";
-            bodyText += `\n\n💡 ${rastgeleSoz}`;
-            await triggerNotification("Bugün Yapılacaklar Listesi", bodyText);
+            await triggerNotification("Bugün Yapılacaklar", `${tasksList.join('\n') || "Görev girilmemiş."}\n\n💡 ${rastgeleSoz}`);
         }
-
-        function checkDailyNotification() {
-            const now = new Date();
-            if (now.getHours() >= 9) {
-                const todayStr = now.toDateString();
-                const lastAutoNotify = localStorage.getItem("lastAutoNotification");
-                if (lastAutoNotify !== todayStr) {
-                    sendTodayNotification();
-                    localStorage.setItem("lastAutoNotification", todayStr);
-                }
-            }
-        }
-        
-        setTimeout(checkDailyNotification, 3000);
-        setInterval(checkDailyNotification, 60000);
 
         document.getElementById('notify-btn').addEventListener('click', () => {
             if (!("Notification" in window)) return alert("Tarayıcın bildirimleri desteklemiyor.");
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") alert("Harika! Bildirim izinleri başarıyla verildi.");
-            });
+            Notification.requestPermission().then(permission => { if (permission === "granted") alert("Bildirim izinleri verildi."); });
         });
-
         document.getElementById('test-notify-btn').addEventListener('click', sendTodayNotification);
 
         function updateYksCountdown() {
-            const yksDate = new Date("2026-06-20T10:15:00").getTime(); 
-            const now = new Date().getTime();
-            const distance = yksDate - now;
-            const countdownElement = document.getElementById("yks-countdown");
-            if (distance < 0) { countdownElement.innerHTML = "🎯 YKS Zamanı!"; return; }
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            countdownElement.innerHTML = `⏳ YKS: ${days} Gün`;
+            const distance = new Date("2026-06-20T10:15:00").getTime() - new Date().getTime();
+            const el = document.getElementById("yks-countdown");
+            if (distance < 0) { el.innerHTML = "🎯 YKS Zamanı!"; return; }
+            el.innerHTML = `⏳ YKS: ${Math.floor(distance / (1000 * 60 * 60 * 24))} Gün`;
         }
-        updateYksCountdown();
-        setInterval(updateYksCountdown, 1000 * 60 * 60 * 24);
+        updateYksCountdown(); setInterval(updateYksCountdown, 86400000);
 
-        // --- Gelişmiş Çalışma Sayacı Mantığı ---
+        // --- Gelişmiş Çalışma & Mola Sayacı ---
         let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
-        let isTimerRunning = localStorage.getItem("isTimerRunning") === "true";
-        let timerInterval = null;
+        let breakSeconds = parseInt(localStorage.getItem("breakSeconds")) || 0;
+        
+        // Durumlar: 'stopped', 'running', 'break'
+        let timerState = localStorage.getItem("timerState") || 'stopped';
+        let mainInterval = null;
 
         const updateTimerDisplay = () => {
-            const hrs = String(Math.floor(timerSeconds / 3600)).padStart(2, '0');
-            const mins = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, '0');
-            const secs = String(timerSeconds % 60).padStart(2, '0');
-            document.getElementById("timer-display").innerText = `${hrs}:${mins}:${secs}`;
+            const format = (sec) => {
+                const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+                const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                return `${h}:${m}:${s}`;
+            };
+            document.getElementById("timer-display").innerText = format(timerSeconds);
+            document.getElementById("break-display").innerText = format(breakSeconds);
         };
 
-        const startTimer = () => {
-            timerInterval = setInterval(() => {
-                timerSeconds++;
-                localStorage.setItem("timerSeconds", timerSeconds);
-                localStorage.setItem("timerLastTimestamp", Date.now());
-                updateTimerDisplay();
-            }, 1000);
+        const tick = () => {
+            if (timerState === 'running') {
+                timerSeconds++; localStorage.setItem("timerSeconds", timerSeconds);
+            } else if (timerState === 'break') {
+                breakSeconds++; localStorage.setItem("breakSeconds", breakSeconds);
+            }
+            localStorage.setItem("timerLastTimestamp", Date.now());
+            updateTimerDisplay();
         };
 
-        if (isTimerRunning) {
+        const applyUIState = () => {
+            const startBtn = document.getElementById("timer-start-btn");
+            const breakBtn = document.getElementById("timer-break-btn");
+            
+            if (timerState === 'running') {
+                startBtn.innerHTML = "⏸️ Durdur"; startBtn.style.background = "var(--danger-color)";
+                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
+            } else if (timerState === 'break') {
+                startBtn.innerHTML = "▶️ Devam Et"; startBtn.style.background = "var(--accent)";
+                breakBtn.innerHTML = "🛑 Molayı Bitir"; breakBtn.style.background = "var(--danger-color)";
+            } else {
+                startBtn.innerHTML = "▶️ Başlat"; startBtn.style.background = "var(--accent)";
+                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
+            }
+        };
+
+        if (timerState !== 'stopped') {
             const lastTime = parseInt(localStorage.getItem("timerLastTimestamp")) || Date.now();
             const elapsed = Math.floor((Date.now() - lastTime) / 1000);
-            if (elapsed > 0) timerSeconds += elapsed;
-            startTimer();
-            document.getElementById("timer-start-btn").innerHTML = "⏸️ Durdur";
-            document.getElementById("timer-start-btn").style.background = "var(--danger-color)";
-        } else { updateTimerDisplay(); }
+            if (elapsed > 0) {
+                if (timerState === 'running') timerSeconds += elapsed;
+                else if (timerState === 'break') breakSeconds += elapsed;
+            }
+            mainInterval = setInterval(tick, 1000);
+        }
+        updateTimerDisplay(); applyUIState();
 
         document.getElementById("timer-start-btn").addEventListener("click", () => {
-            if (!isTimerRunning) {
-                isTimerRunning = true;
-                localStorage.setItem("isTimerRunning", "true");
-                localStorage.setItem("timerLastTimestamp", Date.now());
-                startTimer();
-                document.getElementById("timer-start-btn").innerHTML = "⏸️ Durdur";
-                document.getElementById("timer-start-btn").style.background = "var(--danger-color)";
+            if (timerState === 'stopped' || timerState === 'break') {
+                timerState = 'running';
+                if (!mainInterval) mainInterval = setInterval(tick, 1000);
             } else {
-                isTimerRunning = false;
-                localStorage.setItem("isTimerRunning", "false");
-                clearInterval(timerInterval);
-                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
-                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
             }
+            localStorage.setItem("timerState", timerState);
+            localStorage.setItem("timerLastTimestamp", Date.now());
+            applyUIState();
+        });
+
+        document.getElementById("timer-break-btn").addEventListener("click", () => {
+            if (timerState === 'running' || timerState === 'stopped') {
+                timerState = 'break';
+                if (!mainInterval) mainInterval = setInterval(tick, 1000);
+            } else if (timerState === 'break') {
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+            }
+            localStorage.setItem("timerState", timerState);
+            localStorage.setItem("timerLastTimestamp", Date.now());
+            applyUIState();
         });
 
         document.getElementById("timer-reset-btn").addEventListener("click", () => {
-            if (confirm("Sayacı sıfırlamak istediğine emin misin?")) {
-                isTimerRunning = false;
-                localStorage.setItem("isTimerRunning", "false");
-                clearInterval(timerInterval);
-                timerSeconds = 0;
-                localStorage.setItem("timerSeconds", 0);
-                updateTimerDisplay();
-                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
-                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+            if (confirm("Tüm sayaçları sıfırlamak istediğine emin misin?")) {
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerSeconds = 0; breakSeconds = 0;
+                localStorage.setItem("timerState", timerState);
+                localStorage.setItem("timerSeconds", 0); localStorage.setItem("breakSeconds", 0);
+                updateTimerDisplay(); applyUIState();
             }
         });
 
         document.getElementById("timer-save-btn").addEventListener("click", () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
-            
-            const selectedRowIndex = parseInt(daySelect.value);
-            const selectedColIndex = parseInt(lessonSelect.value);
             const addedHours = timerSeconds / 3600;
-            
             if (timerSeconds < 1) return alert("Aktarmak için önce süreyi başlatmalısın!");
+            const lessonName = document.getElementById(`th-subj-${lessonSelect.value}-text`)?.innerText.trim() || `Ders`;
 
-            const lessonNameEl = document.getElementById(`th-subj-${selectedColIndex}-text`);
-            const lessonName = lessonNameEl ? lessonNameEl.innerText.trim() : `Ders ${selectedColIndex + 1}`;
-
-            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${selectedRowIndex + 1}. Gün — [ ${lessonName} ] dersine biriktirmek istiyor musun?`)) {
-                
-                const taskId = `task-${selectedRowIndex}-${selectedColIndex}`;
-                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${selectedColIndex}"]`);
+            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${parseInt(daySelect.value) + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
+                const taskId = `task-${daySelect.value}-${lessonSelect.value}`;
+                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${lessonSelect.value}"]`);
                 const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
-
+                
                 const currentData = cacheTasks[taskId] || { done: false, hours: 0 };
                 let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
                 
-                const newHours = baselineHours + addedHours;
-                const taskData = { done: true, hours: newHours, updatedAt: Date.now() };
-                cacheTasks[taskId] = taskData;
-                
-                saveToIDB('tasks', cacheTasks);
-                applyDataToUI(); 
-                
-                if(database) set(ref(database, `${SHARED_PATH}tasks/` + taskId), taskData).catch(console.error);
+                const taskData = { done: true, hours: baselineHours + addedHours, updatedAt: Date.now() };
+                cacheTasks[taskId] = taskData; saveToIDB('tasks', cacheTasks); applyDataToUI(); 
+                syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
 
-                isTimerRunning = false;
-                localStorage.setItem("isTimerRunning", "false");
-                clearInterval(timerInterval);
-                timerSeconds = 0;
-                localStorage.setItem("timerSeconds", 0);
-                updateTimerDisplay();
-                document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
-                document.getElementById("timer-start-btn").style.background = "var(--accent)";
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerSeconds = 0; breakSeconds = 0;
+                localStorage.setItem("timerState", timerState);
+                localStorage.setItem("timerSeconds", 0); localStorage.setItem("breakSeconds", 0);
+                updateTimerDisplay(); applyUIState();
             }
         });
 
-        updateStats();
+        // Mobil Widget Minimize İşlemi
+        document.getElementById('minimize-btn').addEventListener('click', (e) => {
+            const widget = document.getElementById('timer-widget');
+            widget.classList.toggle('minimized');
+            e.target.innerText = widget.classList.contains('minimized') ? '▲' : '▼';
+        });
     }); 
 </script>
 </body>
