@@ -82,7 +82,6 @@
         .stat-badge span { color: var(--accent); }
         .stat-hours { background: var(--stat-bg); border-color: transparent; }
         
-        /* Yeni Canlı Alev / Yanma Animasyonu CSS Kodları */
         .streak-badge { background: linear-gradient(45deg, #d32f2f, #f57c00, #fbc02d); color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .streak-active { animation: streak-burn 1.2s ease-in-out infinite alternate; font-weight: 900 !important; letter-spacing: 0.5px; box-shadow: 0 0 12px #ff6d00, inset 0 0 6px #d50000; }
         
@@ -112,6 +111,10 @@
         
         .time-tag { display: block; font-size: 10px; margin-top: 5px; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; width: fit-content; }
         
+        /* Hücre İçi Özel Sayaç Süre Etiketi Tasarımı */
+        .cell-timer-badge { background: #0984e3; color: white; font-size: 9px; font-weight: bold; padding: 2px 5px; border-radius: 4px; margin-left: 6px; display: inline-block; font-variant-numeric: tabular-nums; }
+        [data-theme="dark"] .cell-timer-badge { background: #3b82f6; }
+
         .past-day { background-color: var(--past-day-bg) !important; opacity: 0.65; filter: grayscale(0.5); }
         .past-day:hover { opacity: 1; filter: none; }
         .past-day td:first-child { background-color: var(--past-day-bg) !important; }
@@ -120,7 +123,7 @@
         .btn-complete-day { background: transparent; border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 12px; padding: 3px 6px; transition: all 0.2s; color: var(--text-color); opacity: 0.5; }
         .btn-complete-day:hover { background: var(--accent); color: white; opacity: 1; border-color: var(--accent); }
 
-        .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; user-select: none; }
+        .task-label { display: flex; align-items: center; cursor: pointer; gap: 10px; color: inherit; user-select: none; width: 100%; }
         .completed-text { text-decoration: line-through; opacity: 0.7; }
         
         .note-input { width: 100%; min-width: 160px; padding: 8px; border: 1px solid var(--table-border); border-radius: 6px; background: var(--card-bg); color: var(--text-color); font-size: 12px; font-family: inherit; resize: vertical; min-height: 40px; box-sizing: border-box; transition: border-color 0.2s; }
@@ -249,7 +252,7 @@
         <span id="current-date-info">YKS Kamp Takvimi</span>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
             <span class="stat-badge streak-badge" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
-            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplamıyor...</span>
+            <span class="stat-badge countdown-badge" id="yks-countdown">YKS: Hesaplaşıyor...</span>
             <span id="progress-text">%0 Tamamlandı</span>
         </div>
     </div>
@@ -355,6 +358,20 @@
     const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
     const DEFAULT_START_DATE = "2026-05-04";
     
+    // İstediğin YKS Ders Sıralaması Başlangıç Şablonu Olarak Tanımlandı
+    const DEFAULT_YKS_LESSONS = [
+        { name: "Rutinler", time: "09:30 - 11:30" },
+        { name: "TYT Mat", time: "12:30 - 14:00" },
+        { name: "AYT Mat", time: "14:15 - 15:45" },
+        { name: "AYT Fizik", time: "16:30 - 18:30" },
+        { name: "AYT Kimya", time: "19:30 - 21:00" },
+        { name: "AYT Biyoloji", time: "21:15 - 22:15" },
+        { name: "Türkçe", time: "00:00 - 00:00" },
+        { name: "TYT Biyoloji", time: "00:00 - 00:00" },
+        { name: "TYT Kimya", time: "00:00 - 00:00" },
+        { name: "TYT Fizik", time: "00:00 - 00:00" }
+    ];
+
     let database, tasksRef, notesRef, customTextRef, settingsRef, userRootRef;
     
     document.addEventListener("DOMContentLoaded", async () => {
@@ -408,7 +425,7 @@
             lessonSelect.innerHTML = "";
             for(let c=0; c<currentCols; c++) {
                 const el = document.getElementById(`th-subj-${c}-text`);
-                const lessonName = el ? el.innerText.trim() : `Ders ${c+1}`;
+                const lessonName = el ? el.innerText.trim() : (DEFAULT_YKS_LESSONS[c] ? DEFAULT_YKS_LESSONS[c].name : `Ders ${c+1}`);
                 const opt = document.createElement("option");
                 opt.value = c;
                 opt.innerText = lessonName;
@@ -428,8 +445,10 @@
         const renderTableStructure = () => {
             let thHtml = `<th>Tarih</th>`;
             for(let i=0; i<currentCols; i++) {
-                const subjDef = `Ders ${i+1}`;
-                const timeDef = i === 0 ? "09:30 - 11:30" : "00:00 - 00:00";
+                // Sütun isimleri artık "Ders X" yerine doğrudan YKS dersleri ile akıllıca başlar
+                const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
+                const subjDef = defaultDef.name;
+                const timeDef = defaultDef.time;
                 thHtml += `<th><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${subjDef}</span> <span class="time-tag editable-text" data-edit-id="th-time-${i}">${timeDef}</span></th>`;
             }
             thHtml += `<th>Günün Notu</th><th>Toplam Saat</th>`;
@@ -454,7 +473,8 @@
             for (let c = 0; c < currentCols; c++) {
                 const taskId = `task-${rowIndex}-${c}`;
                 const editId = `task-text-${rowIndex}-${c}`;
-                html += `<td><div class="task-label"><input type="checkbox" id="${taskId}" class="task-checkbox"><span class="task-text editable-text" data-edit-id="${editId}">Ders/Konu Ekle</span></div></td>`;
+                // Hücre içine sayaçtan gelen özel süreyi basabilmek için boş bir kap (.cell-timer-container) ayrıldı
+                html += `<td><div class="task-label"><input type="checkbox" id="${taskId}" class="task-checkbox"><span class="task-text editable-text" data-edit-id="${editId}">Ders/Konu Ekle</span><span class="cell-timer-container" id="timer-badge-${rowIndex}-${c}"></span></div></td>`;
             }
 
             const dayCounter = rowIndex + 1;
@@ -553,8 +573,19 @@
                     
                     subjTotals[cIndex]++;
                     
+                    const taskData = cacheTasks[box.id];
+                    
+                    // Görsel Hücre İçi Süre Etiketi Yönetimi
+                    const badgeContainer = document.getElementById(`timer-badge-${rowIndex}-${cIndex}`);
+                    if (badgeContainer) {
+                        if (taskData && taskData.hours !== undefined && taskData.hours > 0) {
+                            badgeContainer.innerHTML = `<span class="cell-timer-badge">${taskData.hours.toFixed(1)}s</span>`;
+                        } else {
+                            badgeContainer.innerHTML = "";
+                        }
+                    }
+
                     if (box.checked) {
-                        const taskData = cacheTasks[box.id];
                         const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
                         rowTotalHours += hrs; completedHours += hrs;
                         subjStats[cIndex]++; subjTotalHoursArr[cIndex] += hrs;
@@ -575,17 +606,15 @@
                 }
             });
 
-            // --- Kusursuz ve Yeni Seri (Streak) Algoritması ---
+            // Geliştirilmiş Canlı Seri Takip Algoritması
             let currentStreak = 0;
             const todayZ = new Date(); todayZ.setHours(0,0,0,0);
             
             const partsStr = currentStartDate.split('-');
             const startD = new Date(partsStr[0], partsStr[1]-1, partsStr[2]);
             
-            // Kontrolü bugünden başlat
             let checkD = new Date(todayZ);
             
-            // Eğer bugün hedefe ulaşılamadıysa ama gün bitmediyse, seriyi bozmamak için dünden itibaren saymaya başla
             let todayHrs = dailyHoursMap[toDateStr(todayZ)] || 0;
             if (todayHrs < currentTarget && checkD > startD) {
                 checkD.setDate(checkD.getDate() - 1);
@@ -598,12 +627,11 @@
                 if (hrs >= currentTarget) {
                     currentStreak++;
                 } else {
-                    break; // Hedefe ulaşılmayan ilk günde zinciri kır
+                    break; 
                 }
                 checkD.setDate(checkD.getDate() - 1); 
             }
 
-            // Seri var olduğunda animasyon sınıfını ekle/çıkar
             const streakEl = document.getElementById('streak-counter');
             if (streakEl) {
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
@@ -814,6 +842,7 @@
             currentLabel = null;
         });
 
+        // Veri Kaybını Önleyen Güvenli Checkbox Değişim Dinleyicisi
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 const isChecked = e.target.checked;
@@ -821,11 +850,18 @@
                 
                 const taskId = e.target.id;
                 let taskData = null;
+                
                 if (isChecked) {
                     const parts = taskId.split('-'); 
                     const colIndex = parseInt(parts[2]);
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                    taskData = { done: true, hours: getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : ""), updatedAt: Date.now() };
+                    
+                    // Koruma kuralı: Eğer hücrede zaten sayaçtan gelen daha büyük bir süre birikmişse el ile tıklama süreyi ezmez
+                    const existingData = cacheTasks[taskId];
+                    const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+                    const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
+
+                    taskData = { done: true, hours: safeHours, updatedAt: Date.now() };
                 }
                 
                 if(taskData) cacheTasks[taskId] = taskData; else delete cacheTasks[taskId];
@@ -854,7 +890,11 @@
                     const colIndex = parseInt(parts[2]);
                     if (newState) {
                         const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                        const data = { done: true, hours: getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : ""), updatedAt: now };
+                        const existingData = cacheTasks[box.id];
+                        const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+                        const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
+
+                        const data = { done: true, hours: safeHours, updatedAt: now };
                         updates[box.id] = data;
                         cacheTasks[box.id] = data;
                     } else {
@@ -994,45 +1034,6 @@
                                 if (data.customTexts) await set(ref(database, `${SHARED_PATH}customTexts`), data.customTexts);
                                 if (data.settings) await set(ref(database, `${SHARED_PATH}settings`), data.settings);
                             }
-                            else if (Array.isArray(data)) {
-                                let newCustomTexts = {}; 
-                                let newNotes = {};
-                                
-                                newCustomTexts["th-subj-0"] = "Rutinler";
-                                newCustomTexts["th-time-0"] = "09:30 - 11:30"; 
-                                
-                                newCustomTexts["th-subj-1"] = "Matematik 1";
-                                newCustomTexts["th-time-1"] = "12:30 - 14:00"; 
-                                
-                                newCustomTexts["th-subj-2"] = "Matematik 2";
-                                newCustomTexts["th-time-2"] = "14:15 - 15:30"; 
-                                
-                                newCustomTexts["th-subj-3"] = "Fen Bilimleri";
-                                newCustomTexts["th-time-3"] = "16:30 - 18:30"; 
-                                
-                                newCustomTexts["th-subj-4"] = "Tekrar & Soru";
-                                newCustomTexts["th-time-4"] = "19:30 - 21:00"; 
-                                
-                                data.forEach((gun, rowIndex) => {
-                                    newCustomTexts[`task-text-${rowIndex}-0`] = gun.rutin || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-1`] = gun.mat1 || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-2`] = gun.mat2 || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-3`] = gun.fen || "-";
-                                    newCustomTexts[`task-text-${rowIndex}-4`] = gun.tekrar || "-";
-                                });
-                                
-                                await set(ref(database, `${SHARED_PATH}settings`), {
-                                    colCount: 5,
-                                    rowCount: data.length,
-                                    startDate: "2026-05-04",
-                                    targetHours: 8
-                                });
-                                
-                                await set(ref(database, `${SHARED_PATH}tasks`), null); 
-                                await set(ref(database, `${SHARED_PATH}customTexts`), newCustomTexts);
-                                await set(ref(database, `${SHARED_PATH}notes`), newNotes);
-                            }
-
                             alert("Sistem başarıyla yeni programına güncellendi! Sayfa yenileniyor...");
                             window.location.reload(); 
                         }
@@ -1049,43 +1050,28 @@
         async function triggerNotification(title, body) {
             try {
                 if (Notification.permission === "granted") {
-                    const options = {
-                        body: body,
-                        icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
-                        requireInteraction: true 
-                    };
-                    
+                    const options = { body: body, icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", requireInteraction: true };
                     if ('serviceWorker' in navigator) {
                         const reg = await navigator.serviceWorker.getRegistration();
-                        if (reg && reg.showNotification) {
-                            reg.showNotification(title, options);
-                            return;
-                        }
+                        if (reg && reg.showNotification) { reg.showNotification(title, options); return; }
                     }
                     new Notification(title, options);
-                } else {
-                    alert(`🔔 ${title}\n\n${body}`); 
-                }
-            } catch (error) {
-                alert(`🔔 ${title}\n\n${body}`); 
-            }
+                } else { alert(`🔔 ${title}\n\n${body}`); }
+            } catch (error) { alert(`🔔 ${title}\n\n${body}`); }
         }
 
         async function sendTodayNotification() {
             const todayRow = document.querySelector('.today-highlight');
-            
             const motivasyonSozleri = [
                 "Bugün, gelecekteki senin sana teşekkür edeceği bir gün olsun! 🚀",
                 "Başarı, her gün tekrarlanan küçük çabaların toplamıdır. 💪",
                 "Zorluklar, sıradan insanları sıra dışı bir kadere hazırlar. 🌟",
-                "Hiçbir zafere çiçekli yollardan gidilmez. Devam et! 🔥",
-                "Hayal edebiliyorsan, yapabilirsin. Bugün bir adım daha at! 🎯",
-                "Pes etmeyen birini yenmek çok zordur. Bugün de pes etmiyoruz! 🛡️"
+                "Hiçbir zafere çiçekli yollardan gidilmez. Devam et! 🔥"
             ];
             const rastgeleSoz = motivasyonSozleri[Math.floor(Math.random() * motivasyonSozleri.length)];
 
             if (!todayRow) {
-                await triggerNotification("📌 YKS Kamp Takip", `Bugün için bir görev bulunamadı. Belki de dinlenme günündür!\n\n💡 ${rastgeleSoz}`);
+                await triggerNotification("📌 YKS Kamp Takip", `Bugün için bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
                 return;
             }
 
@@ -1096,23 +1082,14 @@
             tasks.forEach((taskSpan, index) => {
                 const taskText = taskSpan.innerText.trim();
                 const subjText = headers[index] ? headers[index].innerText.trim() : "";
-                
                 if (taskText !== "Ders/Konu Ekle" && taskText !== "-") {
                     const isDone = taskSpan.previousElementSibling && taskSpan.previousElementSibling.checked;
                     tasksList.push(`${isDone ? '✅' : '⏳'} ${subjText}: ${taskText}`);
                 }
             });
 
-            const noteInput = todayRow.querySelector('.note-input');
-            if (noteInput && noteInput.value.trim() !== "") {
-                tasksList.push(`\n📝 Not: ${noteInput.value.trim()}`);
-            }
-
-            let bodyText = tasksList.join('\n');
-            if (tasksList.length === 0) bodyText = "Bugün için özel bir görev girilmemiş.";
-
+            let bodyText = tasksList.join('\n') || "Bugün için özel bir görev girilmemiş.";
             bodyText += `\n\n💡 ${rastgeleSoz}`;
-
             await triggerNotification("Bugün Yapılacaklar Listesi", bodyText);
         }
 
@@ -1121,7 +1098,6 @@
             if (now.getHours() >= 9) {
                 const todayStr = now.toDateString();
                 const lastAutoNotify = localStorage.getItem("lastAutoNotification");
-                
                 if (lastAutoNotify !== todayStr) {
                     sendTodayNotification();
                     localStorage.setItem("lastAutoNotification", todayStr);
@@ -1133,54 +1109,25 @@
         setInterval(checkDailyNotification, 60000);
 
         document.getElementById('notify-btn').addEventListener('click', () => {
-            if (!("Notification" in window)) {
-                alert("Tarayıcın bildirimleri desteklemiyor. Sorun değil, görevler pop-up mesajı olarak ekrana gelecek.");
-                return;
-            }
-            if (Notification.permission === "granted") {
-                alert("Bildirim izni zaten verilmiş! Test butonunu kullanabilirsin.");
-            } else if (Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        alert("Harika! Bildirim izinleri başarıyla verildi.");
-                    } else {
-                        alert("Bildirim izni verilmedi. Görevler pop-up mesajı olarak gösterilecek.");
-                    }
-                });
-            } else {
-                alert("Bildirimler tarayıcı ayarlarından engellenmiş. Lütfen adres çubuğundan izin ver veya ekran pop-up'ları ile devam et.");
-            }
+            if (!("Notification" in window)) return alert("Tarayıcın bildirimleri desteklemiyor.");
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") alert("Harika! Bildirim izinleri başarıyla verildi.");
+            });
         });
 
-        document.getElementById('test-notify-btn').addEventListener('click', () => {
-            sendTodayNotification();
-        });
+        document.getElementById('test-notify-btn').addEventListener('click', sendTodayNotification);
 
         function updateYksCountdown() {
             const yksDate = new Date("2026-06-20T10:15:00").getTime(); 
             const now = new Date().getTime();
             const distance = yksDate - now;
-
             const countdownElement = document.getElementById("yks-countdown");
-            if (distance < 0) {
-                countdownElement.innerHTML = "🎯 YKS Zamanı!";
-                return;
-            }
+            if (distance < 0) { countdownElement.innerHTML = "🎯 YKS Zamanı!"; return; }
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             countdownElement.innerHTML = `⏳ YKS: ${days} Gün`;
         }
         updateYksCountdown();
         setInterval(updateYksCountdown, 1000 * 60 * 60 * 24);
-
-        document.getElementById('settings-menu').addEventListener('click', (e) => {
-            if(e.target.tagName === 'INPUT') e.stopPropagation();
-        });
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW kayıt hatası: ', err));
-            });
-        }
 
         // --- Gelişmiş Çalışma Sayacı Mantığı ---
         let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
@@ -1210,9 +1157,7 @@
             startTimer();
             document.getElementById("timer-start-btn").innerHTML = "⏸️ Durdur";
             document.getElementById("timer-start-btn").style.background = "var(--danger-color)";
-        } else {
-            updateTimerDisplay();
-        }
+        } else { updateTimerDisplay(); }
 
         document.getElementById("timer-start-btn").addEventListener("click", () => {
             if (!isTimerRunning) {
@@ -1252,18 +1197,14 @@
             const selectedColIndex = parseInt(lessonSelect.value);
             const addedHours = timerSeconds / 3600;
             
-            if (timerSeconds < 1) {
-                alert("Aktarmak için önce sayacı başlatıp süre kaydetmelisin!");
-                return;
-            }
+            if (timerSeconds < 1) return alert("Aktarmak için önce süreyi başlatmalısın!");
 
             const lessonNameEl = document.getElementById(`th-subj-${selectedColIndex}-text`);
             const lessonName = lessonNameEl ? lessonNameEl.innerText.trim() : `Ders ${selectedColIndex + 1}`;
 
-            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık (${addedHours.toFixed(2)} saat) çalışma süresini\n👉 ${selectedRowIndex + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
+            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${selectedRowIndex + 1}. Gün — [ ${lessonName} ] dersine biriktirmek istiyor musun?`)) {
                 
                 const taskId = `task-${selectedRowIndex}-${selectedColIndex}`;
-                
                 const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${selectedColIndex}"]`);
                 const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
 
@@ -1271,7 +1212,6 @@
                 let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
                 
                 const newHours = baselineHours + addedHours;
-                
                 const taskData = { done: true, hours: newHours, updatedAt: Date.now() };
                 cacheTasks[taskId] = taskData;
                 
@@ -1288,8 +1228,6 @@
                 updateTimerDisplay();
                 document.getElementById("timer-start-btn").innerHTML = "▶️ Başlat";
                 document.getElementById("timer-start-btn").style.background = "var(--accent)";
-                
-                alert(`Süre başarıyla ${lessonName} dersine eklendi ve ilgili kutucuk işaretlendi!`);
             }
         });
 
