@@ -604,25 +604,38 @@
                 }
             });
 
-            // Gelişmiş Seri Mantığı (Düzeltildi)
+                        // --- Gelişmiş Seri Mantığı (YENİLENDİ VE KESİN ÇÖZÜM) ---
             let currentStreak = 0;
-            const todayZ = new Date(); todayZ.setHours(0,0,0,0);
-            const partsStr = currentStartDate.split('-');
-            const startD = new Date(partsStr[0], partsStr[1]-1, partsStr[2]);
-            
-            let checkD = new Date(todayZ);
-            let todayHrs = dailyHoursMap[toDateStr(todayZ)] || 0;
-            
-            // Eğer bugün tamamlanmamışsa, düne bakmaya başla
-            if (todayHrs < currentTarget) checkD.setDate(checkD.getDate() - 1);
+            const safeTarget = currentTarget - 0.05; // Float toplama hatalarını aşmak için tolerans
 
-            while(checkD >= startD) {
-                let dStr = toDateStr(checkD);
-                let hrs = dailyHoursMap[dStr] || 0;
-                if (hrs >= currentTarget) {
+            const getPrevDateStr = (dateStr) => {
+                const parts = dateStr.split('-');
+                const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                d.setDate(d.getDate() - 1);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            };
+
+            let checkStr = toDateStr(new Date());
+            let todayHrs = dailyHoursMap[checkStr] || 0;
+
+            // Eğer bugün hedefe henüz ulaşılmadıysa seriyi düne bağla
+            if (todayHrs < safeTarget) {
+                checkStr = getPrevDateStr(checkStr);
+            }
+
+            // Geriye doğru say
+            while (true) {
+                let hrs = dailyHoursMap[checkStr];
+                
+                // Tabloda bu tarihe ait bir satır/veri yoksa döngüden çık
+                if (hrs === undefined) break;
+
+                if (hrs >= safeTarget) {
                     currentStreak++;
-                    checkD.setDate(checkD.getDate() - 1); 
-                } else { break; } // Hedef tutmadığı an seri kopar
+                    checkStr = getPrevDateStr(checkStr); // Bir önceki güne geç
+                } else {
+                    break; // Hedefe ulaşılamayan ilk günde seriyi kır
+                }
             }
 
             const streakEl = document.getElementById('streak-counter');
@@ -630,6 +643,8 @@
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
                 streakEl.classList.toggle('streak-active', currentStreak > 0);
             }
+            // --- Gelişmiş Seri Mantığı Bitiş ---
+
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
