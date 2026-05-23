@@ -81,7 +81,16 @@
         .stat-badge { background: var(--card-bg); border: 1px solid var(--table-border); padding: 5px 10px; border-radius: 6px; display: flex; gap: 6px; align-items: center; }
         .stat-badge span { color: var(--accent); }
         .stat-hours { background: var(--stat-bg); border-color: transparent; }
-        .streak-badge { background: linear-gradient(45deg, #ff9f43, #ee5253); color: white; border: none; }
+        
+        /* Yeni Canlı Alev / Yanma Animasyonu CSS Kodları */
+        .streak-badge { background: linear-gradient(45deg, #d32f2f, #f57c00, #fbc02d); color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .streak-active { animation: streak-burn 1.2s ease-in-out infinite alternate; font-weight: 900 !important; letter-spacing: 0.5px; box-shadow: 0 0 12px #ff6d00, inset 0 0 6px #d50000; }
+        
+        @keyframes streak-burn {
+            0% { transform: scale(1); filter: drop-shadow(0 0 2px #ff3d00); }
+            100% { transform: scale(1.06) rotate(-1deg); filter: drop-shadow(0 0 10px #ffea00); }
+        }
+
         .countdown-badge { background: #222f3e; color: #ff9f43; border: none; letter-spacing: 0.5px; }
 
         .content { padding: 25px 20px; display: flex; flex-direction: column; align-items: center; }
@@ -147,7 +156,6 @@
         .week-item .w-val { font-size: 18px; color: var(--text-color); font-weight: 900; }
         .week-item .w-val span { font-size: 11px; font-weight: 600; color: var(--secondary-text); }
 
-        /* Geliştirilmiş ve Genişletilmiş Sayaç Arayüzü */
         .timer-widget { position: fixed; bottom: 25px; right: 25px; z-index: 1000; background: var(--card-bg); border: 2px solid var(--table-border); border-radius: 16px; padding: 15px; width: 250px; box-shadow: 0 10px 35px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px; transition: transform 0.3s; }
         .timer-title { font-size: 12px; font-weight: 700; color: var(--secondary-text); text-align: center; }
         .timer-display { font-size: 26px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; color: var(--accent); margin: 3px 0; letter-spacing: 0.5px; }
@@ -384,13 +392,11 @@
             currentRowCount = idbSettings.rowCount || 17;
         }
 
-        // Sayaç Menüsündeki Seçenekleri (Gün ve Dinamik Ders İsimlerini) Dolduran Fonksiyon
         const populateTimerDropdowns = () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
             if (!daySelect || !lessonSelect) return;
 
-            // 1. Günleri Doldur
             daySelect.innerHTML = "";
             for(let r=0; r<currentRowCount; r++) {
                 const opt = document.createElement("option");
@@ -399,7 +405,6 @@
                 daySelect.appendChild(opt);
             }
 
-            // 2. Tablodaki Başlıklardan Ders İsimlerini Al ve Menüye Ekle
             lessonSelect.innerHTML = "";
             for(let c=0; c<currentCols; c++) {
                 const el = document.getElementById(`th-subj-${c}-text`);
@@ -410,7 +415,6 @@
                 lessonSelect.appendChild(opt);
             }
 
-            // Otomatik olarak aktif günü (Bugün) seç
             setTimeout(() => {
                 const todayRow = document.querySelector('.today-highlight');
                 if (todayRow) {
@@ -571,34 +575,44 @@
                 }
             });
 
+            // --- Kusursuz ve Yeni Seri (Streak) Algoritması ---
             let currentStreak = 0;
-            const todayZ = new Date(); 
-            todayZ.setHours(0,0,0,0);
+            const todayZ = new Date(); todayZ.setHours(0,0,0,0);
             
             const partsStr = currentStartDate.split('-');
             const startD = new Date(partsStr[0], partsStr[1]-1, partsStr[2]);
             
+            // Kontrolü bugünden başlat
             let checkD = new Date(todayZ);
-            let keepChecking = true;
+            
+            // Eğer bugün hedefe ulaşılamadıysa ama gün bitmediyse, seriyi bozmamak için dünden itibaren saymaya başla
+            let todayHrs = dailyHoursMap[toDateStr(todayZ)] || 0;
+            if (todayHrs < currentTarget && checkD > startD) {
+                checkD.setDate(checkD.getDate() - 1);
+            }
 
-            while(keepChecking && checkD >= startD) {
+            while(checkD >= startD) {
                 let dStr = toDateStr(checkD);
                 let hrs = dailyHoursMap[dStr] || 0;
 
-                if (checkD.getTime() === todayZ.getTime()) {
-                    if (hrs >= currentTarget) currentStreak++;
+                if (hrs >= currentTarget) {
+                    currentStreak++;
                 } else {
-                    if (hrs >= currentTarget) {
-                        currentStreak++;
-                    } else {
-                        keepChecking = false; 
-                    }
+                    break; // Hedefe ulaşılmayan ilk günde zinciri kır
                 }
                 checkD.setDate(checkD.getDate() - 1); 
             }
 
+            // Seri var olduğunda animasyon sınıfını ekle/çıkar
             const streakEl = document.getElementById('streak-counter');
-            if (streakEl) streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
+            if (streakEl) {
+                streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
+                if (currentStreak > 0) {
+                    streakEl.classList.add('streak-active');
+                } else {
+                    streakEl.classList.remove('streak-active');
+                }
+            }
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
@@ -746,7 +760,7 @@
                 const id = el.getAttribute('data-edit-id');
                 if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
             });
-            populateTimerDropdowns(); // Başlıklar yüklenince sayaç menüsünü senkronize et
+            populateTimerDropdowns(); 
             debouncedApplyData(); 
         });
 
@@ -868,7 +882,7 @@
                 saveCustomText(id, e.target.innerText);
                 if (id.startsWith('th-time-') || id.startsWith('th-subj-')) {
                     updateStats();
-                    populateTimerDropdowns(); // Kullanıcı elle başlık değiştirirse sayaç menüsünü anlık güncelle
+                    populateTimerDropdowns(); 
                 }
             }
         });
@@ -1230,7 +1244,6 @@
             }
         });
 
-        // Sayacı Belirli Bir Güne ve Derse (Kutucuğa) Bağlayarak Aktarma Mekanizması
         document.getElementById("timer-save-btn").addEventListener("click", () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
@@ -1251,11 +1264,9 @@
                 
                 const taskId = `task-${selectedRowIndex}-${selectedColIndex}`;
                 
-                // Mevcut sütun saat kuralını çek
                 const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${selectedColIndex}"]`);
                 const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
 
-                // Eğer görev daha önce hiç ellenmemişse ve boşsa, başlangıç saatini 0 kabul et yoksa eski sürenin üstüne biriktir
                 const currentData = cacheTasks[taskId] || { done: false, hours: 0 };
                 let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
                 
@@ -1265,11 +1276,10 @@
                 cacheTasks[taskId] = taskData;
                 
                 saveToIDB('tasks', cacheTasks);
-                applyDataToUI(); // Arayüzü, checkbox durumlarını ve grafikleri anında güncelle
+                applyDataToUI(); 
                 
                 if(database) set(ref(database, `${SHARED_PATH}tasks/` + taskId), taskData).catch(console.error);
 
-                // Aktarım başarılıysa sayacı temizle
                 isTimerRunning = false;
                 localStorage.setItem("isTimerRunning", "false");
                 clearInterval(timerInterval);
