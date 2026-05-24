@@ -323,11 +323,10 @@
     }
 
     const dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open("YksKampProDB", 2); // Versiyon artırıldı
+        const req = indexedDB.open("YksKampProDB", 2);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains("kampCache")) { db.createObjectStore("kampCache"); }
-            // Çevrimdışı senkronizasyon kuyruğu eklendi
             if (!db.objectStoreNames.contains("syncQueue")) { db.createObjectStore("syncQueue", { keyPath: "id", autoIncrement: true }); }
         };
         req.onsuccess = (e) => resolve(e.target.result);
@@ -604,7 +603,6 @@
                 }
             });
 
-            // --- Gelişmiş Seri Mantığı ---
             let currentStreak = 0;
             const safeTarget = currentTarget - 0.05;
 
@@ -639,7 +637,6 @@
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
                 streakEl.classList.toggle('streak-active', currentStreak > 0);
             }
-            // --- Gelişmiş Seri Mantığı Bitiş ---
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
@@ -888,10 +885,6 @@
         document.getElementById('settings-toggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('settings-menu').classList.toggle('show-dropdown'); });
         window.addEventListener('click', (e) => { if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown'); });
 
-        // ==========================================
-        //  YENİ EKLENEN İŞLEVSEL EVENT LISTENER'LAR
-        // ==========================================
-
         // 1. Yedeği İndir (Export) İşlevi
         document.getElementById("export-btn").addEventListener("click", () => {
             const backupData = {
@@ -919,7 +912,7 @@
             document.getElementById("import-file").click();
         });
 
-        // 3. Dosya Seçildiğinde Yedek Dosyasını Okuma ve Yükleme (Import) İşlevi
+        // 3. Dosya Seçildiğinde Yedek VEYA Ders Programı Dosyasını Okuma ve Yükleme (Import) İşlevi
         document.getElementById("import-file").addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -927,45 +920,94 @@
             reader.onload = async (event) => {
                 try {
                     const parsed = JSON.parse(event.target.result);
-                    if (confirm("Bu yedeği yüklerseniz mevcut tüm verilerinizin üzerine yazılacaktır. Onaylıyor musunuz?")) {
-                        cacheTasks = parsed.tasks || {};
-                        cacheNotes = parsed.notes || {};
-                        cacheCustomTexts = parsed.customTexts || {};
+                    if (confirm("Bu dosyayı yüklerseniz mevcut tüm verilerinizin üzerine yazılacaktır. Onaylıyor musunuz?")) {
                         
-                        const s = parsed.settings || {};
-                        currentStartDate = s.startDate || DEFAULT_START_DATE;
-                        currentTarget = s.targetHours || 8;
-                        currentCols = s.colCount || 5;
-                        currentRowCount = s.rowCount || 17;
+                        // Akıllı Çözüm: Eğer dosya bir "Ders Çalışma Programı" JSON'ı ise otomatik olarak tabloya dönüştür
+                        if (parsed.study_schedule && Array.isArray(parsed.study_schedule)) {
+                            cacheTasks = {};
+                            cacheNotes = {};
+                            cacheCustomTexts = {};
+                            
+                            // Sütun başlıklarını program formatına göre uyarla
+                            cacheCustomTexts["th-subj-0"] = "Rutinler";
+                            cacheCustomTexts["th-subj-1"] = "Matematik";
+                            cacheCustomTexts["th-subj-2"] = "Fizik";
+                            cacheCustomTexts["th-subj-3"] = "Kimya";
+                            cacheCustomTexts["th-subj-4"] = "Biyoloji";
+                            
+                            cacheCustomTexts["th-time-0"] = "Rutinler";
+                            cacheCustomTexts["th-time-1"] = "AYT / TYT";
+                            cacheCustomTexts["th-time-2"] = "AYT Fizik";
+                            cacheCustomTexts["th-time-3"] = "AYT Kimya";
+                            cacheCustomTexts["th-time-4"] = "AYT Biyoloji";
+
+                            // Gün gün hücre içeriklerini eşleştirerek yazdır
+                            parsed.study_schedule.forEach((dayData, r) => {
+                                if (Array.isArray(dayData.routine)) {
+                                    cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
+                                } else {
+                                    cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
+                                }
+                                cacheCustomTexts[`task-text-${r}-1`] = dayData.math || "-";
+                                cacheCustomTexts[`task-text-${r}-2`] = dayData.physics || "-";
+                                cacheCustomTexts[`task-text-${r}-3`] = dayData.chemistry || "-";
+                                cacheCustomTexts[`task-text-${r}-4`] = dayData.biology || "-";
+                            });
+
+                            // Ayarları gelen veri uzunluğuna ve başlangıç tarihine göre güncelle
+                            currentStartDate = parsed.study_schedule[0]?.date || "2026-05-25";
+                            currentTarget = 8;
+                            currentCols = 5;
+                            currentRowCount = parsed.study_schedule.length;
+                            
+                        } else {
+                            // Eğer dosya normal bir "Sistem Uygulama Yedeği" ise
+                            cacheTasks = parsed.tasks || {};
+                            cacheNotes = parsed.notes || {};
+                            cacheCustomTexts = parsed.customTexts || {};
+                            
+                            const s = parsed.settings || {};
+                            currentStartDate = s.startDate || DEFAULT_START_DATE;
+                            currentTarget = s.targetHours || 8;
+                            currentCols = s.colCount || 5;
+                            currentRowCount = s.rowCount || 17;
+                        }
+
+                        const settingsObj = {
+                            startDate: currentStartDate,
+                            targetHours: currentTarget,
+                            colCount: currentCols,
+                            rowCount: currentRowCount
+                        };
 
                         // Yerel IDB'yi güncelle
                         await Promise.all([
                             saveToIDB('tasks', cacheTasks),
                             saveToIDB('notes', cacheNotes),
                             saveToIDB('customTexts', cacheCustomTexts),
-                            saveToIDB('settings', s)
+                            saveToIDB('settings', settingsObj)
                         ]);
 
-                        // Firebase Bulut Senkronizasyonu
+                        // Firebase Bulut Senkronizasyonu (Veritabanı güvenliği için boş gelen objelere null atıyoruz)
                         await Promise.all([
-                            syncFirebaseSet(`${SHARED_PATH}tasks/`, cacheTasks),
-                            syncFirebaseSet(`${SHARED_PATH}notes/`, cacheNotes),
-                            syncFirebaseSet(`${SHARED_PATH}customTexts/`, cacheCustomTexts),
-                            syncFirebaseSet(`${SHARED_PATH}settings/`, s)
+                            syncFirebaseSet(`${SHARED_PATH}tasks/`, Object.keys(cacheTasks).length > 0 ? cacheTasks : null),
+                            syncFirebaseSet(`${SHARED_PATH}notes/`, Object.keys(cacheNotes).length > 0 ? cacheNotes : null),
+                            syncFirebaseSet(`${SHARED_PATH}customTexts/`, Object.keys(cacheCustomTexts).length > 0 ? cacheCustomTexts : null),
+                            syncFirebaseSet(`${SHARED_PATH}settings/`, settingsObj)
                         ]);
 
-                        // Arayüzü yeniden oluştur ve verileri bas
+                        // Arayüz yapısını baştan kur ve verileri doldur
                         renderTableStructure();
                         applyDataToUI();
-                        alert("🚀 Yedek başarıyla geri yüklendi!");
+                        alert("🚀 Program verileri başarıyla çözümlendi ve tabloya aktarıldı!");
                     }
                 } catch (err) {
-                    alert("❌ Hata: Geçersiz yedek dosyası formatı!");
+                    alert("❌ Hata: Geçersiz dosya veya JSON formatı!");
                     console.error(err);
                 }
             };
             reader.readAsText(file);
-            e.target.value = ""; // Aynı dosyayı tekrar seçebilmek için sıfırla
+            e.target.value = "";
         });
 
         // 4. Tabloyu Sıfırla (Reset) İşlevi
@@ -987,7 +1029,6 @@
                 currentCols = defaultSettings.colCount;
                 currentRowCount = defaultSettings.rowCount;
 
-                // IDB Sıfırlama
                 await Promise.all([
                     saveToIDB('tasks', cacheTasks),
                     saveToIDB('notes', cacheNotes),
@@ -995,21 +1036,18 @@
                     saveToIDB('settings', defaultSettings)
                 ]);
 
-                // Firebase Verilerini Sıfırlama
                 await Promise.all([
-                    syncFirebaseSet(`${SHARED_PATH}tasks/`, cacheTasks),
-                    syncFirebaseSet(`${SHARED_PATH}notes/`, cacheNotes),
-                    syncFirebaseSet(`${SHARED_PATH}customTexts/`, cacheCustomTexts),
+                    syncFirebaseSet(`${SHARED_PATH}tasks/`, null),
+                    syncFirebaseSet(`${SHARED_PATH}notes/`, null),
+                    syncFirebaseSet(`${SHARED_PATH}customTexts/`, null),
                     syncFirebaseSet(`${SHARED_PATH}settings/`, defaultSettings)
                 ]);
 
-                // Yapıyı varsayılana çekip render et
                 renderTableStructure();
                 applyDataToUI();
                 alert("🗑️ Tablo başarıyla ilk ayarlarına sıfırlandı!");
             }
         });
-        // ==========================================
 
         async function triggerNotification(title, body) {
             try {
