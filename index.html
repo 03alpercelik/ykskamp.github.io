@@ -604,9 +604,9 @@
                 }
             });
 
-                        // --- Gelişmiş Seri Mantığı (YENİLENDİ VE KESİN ÇÖZÜM) ---
+            // --- Gelişmiş Seri Mantığı ---
             let currentStreak = 0;
-            const safeTarget = currentTarget - 0.05; // Float toplama hatalarını aşmak için tolerans
+            const safeTarget = currentTarget - 0.05;
 
             const getPrevDateStr = (dateStr) => {
                 const parts = dateStr.split('-');
@@ -618,23 +618,19 @@
             let checkStr = toDateStr(new Date());
             let todayHrs = dailyHoursMap[checkStr] || 0;
 
-            // Eğer bugün hedefe henüz ulaşılmadıysa seriyi düne bağla
             if (todayHrs < safeTarget) {
                 checkStr = getPrevDateStr(checkStr);
             }
 
-            // Geriye doğru say
             while (true) {
                 let hrs = dailyHoursMap[checkStr];
-                
-                // Tabloda bu tarihe ait bir satır/veri yoksa döngüden çık
                 if (hrs === undefined) break;
 
                 if (hrs >= safeTarget) {
                     currentStreak++;
-                    checkStr = getPrevDateStr(checkStr); // Bir önceki güne geç
+                    checkStr = getPrevDateStr(checkStr);
                 } else {
-                    break; // Hedefe ulaşılamayan ilk günde seriyi kır
+                    break;
                 }
             }
 
@@ -644,7 +640,6 @@
                 streakEl.classList.toggle('streak-active', currentStreak > 0);
             }
             // --- Gelişmiş Seri Mantığı Bitiş ---
-
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
@@ -689,14 +684,12 @@
                     scales: { x: { grid: { color: gridColor } }, y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor } } } }
             });
 
-            // Ders Bazlı Özet
             const weeklyGrid = document.getElementById('weekly-summary-grid');
             weeklyGrid.innerHTML = "";
             subjNames.forEach((name, i) => {
                 weeklyGrid.innerHTML += `<div class="week-item"><span class="w-title">${name}</span><span class="w-val">${subjTotalHoursArr[i].toFixed(1)} <span>Saat</span></span></div>`;
             });
 
-            // Yeni: Haftalık Çalışma Özeti
             const weekSummaryGrid = document.getElementById('weekly-summary-grid-2');
             if (weekSummaryGrid) {
                 let weeklyHtml = "";
@@ -779,8 +772,6 @@
             populateTimerDropdowns(); debouncedApplyData(); 
         });
 
-        // Kilit Değişiklik: Swipe/Kaydırma event listener'ları TIKLAMA HASSASİYETİ İÇİN TAMAMEN KALDIRILDI.
-        
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 const isChecked = e.target.checked;
@@ -897,6 +888,129 @@
         document.getElementById('settings-toggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('settings-menu').classList.toggle('show-dropdown'); });
         window.addEventListener('click', (e) => { if (!e.target.matches('#settings-toggle')) document.getElementById('settings-menu').classList.remove('show-dropdown'); });
 
+        // ==========================================
+        //  YENİ EKLENEN İŞLEVSEL EVENT LISTENER'LAR
+        // ==========================================
+
+        // 1. Yedeği İndir (Export) İşlevi
+        document.getElementById("export-btn").addEventListener("click", () => {
+            const backupData = {
+                tasks: cacheTasks,
+                notes: cacheNotes,
+                customTexts: cacheCustomTexts,
+                settings: {
+                    startDate: currentStartDate,
+                    targetHours: currentTarget,
+                    colCount: currentCols,
+                    rowCount: currentRowCount
+                }
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `yks_kamp_pro_yedek_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        // 2. Yedek Yükle Buton Tetikleyicisi
+        document.getElementById("import-trigger-btn").addEventListener("click", () => {
+            document.getElementById("import-file").click();
+        });
+
+        // 3. Dosya Seçildiğinde Yedek Dosyasını Okuma ve Yükleme (Import) İşlevi
+        document.getElementById("import-file").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const parsed = JSON.parse(event.target.result);
+                    if (confirm("Bu yedeği yüklerseniz mevcut tüm verilerinizin üzerine yazılacaktır. Onaylıyor musunuz?")) {
+                        cacheTasks = parsed.tasks || {};
+                        cacheNotes = parsed.notes || {};
+                        cacheCustomTexts = parsed.customTexts || {};
+                        
+                        const s = parsed.settings || {};
+                        currentStartDate = s.startDate || DEFAULT_START_DATE;
+                        currentTarget = s.targetHours || 8;
+                        currentCols = s.colCount || 5;
+                        currentRowCount = s.rowCount || 17;
+
+                        // Yerel IDB'yi güncelle
+                        await Promise.all([
+                            saveToIDB('tasks', cacheTasks),
+                            saveToIDB('notes', cacheNotes),
+                            saveToIDB('customTexts', cacheCustomTexts),
+                            saveToIDB('settings', s)
+                        ]);
+
+                        // Firebase Bulut Senkronizasyonu
+                        await Promise.all([
+                            syncFirebaseSet(`${SHARED_PATH}tasks/`, cacheTasks),
+                            syncFirebaseSet(`${SHARED_PATH}notes/`, cacheNotes),
+                            syncFirebaseSet(`${SHARED_PATH}customTexts/`, cacheCustomTexts),
+                            syncFirebaseSet(`${SHARED_PATH}settings/`, s)
+                        ]);
+
+                        // Arayüzü yeniden oluştur ve verileri bas
+                        renderTableStructure();
+                        applyDataToUI();
+                        alert("🚀 Yedek başarıyla geri yüklendi!");
+                    }
+                } catch (err) {
+                    alert("❌ Hata: Geçersiz yedek dosyası formatı!");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ""; // Aynı dosyayı tekrar seçebilmek için sıfırla
+        });
+
+        // 4. Tabloyu Sıfırla (Reset) İşlevi
+        document.getElementById("reset-btn").addEventListener("click", async () => {
+            if (confirm("⚠️ UYARI: Tüm tablo içeriğini, girilen ders isimlerini, süreleri ve günlük notları kalıcı olarak temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz!")) {
+                cacheTasks = {};
+                cacheNotes = {};
+                cacheCustomTexts = {};
+                
+                const defaultSettings = {
+                    startDate: DEFAULT_START_DATE,
+                    targetHours: 8,
+                    colCount: 5,
+                    rowCount: 17
+                };
+                
+                currentStartDate = defaultSettings.startDate;
+                currentTarget = defaultSettings.targetHours;
+                currentCols = defaultSettings.colCount;
+                currentRowCount = defaultSettings.rowCount;
+
+                // IDB Sıfırlama
+                await Promise.all([
+                    saveToIDB('tasks', cacheTasks),
+                    saveToIDB('notes', cacheNotes),
+                    saveToIDB('customTexts', cacheCustomTexts),
+                    saveToIDB('settings', defaultSettings)
+                ]);
+
+                // Firebase Verilerini Sıfırlama
+                await Promise.all([
+                    syncFirebaseSet(`${SHARED_PATH}tasks/`, cacheTasks),
+                    syncFirebaseSet(`${SHARED_PATH}notes/`, cacheNotes),
+                    syncFirebaseSet(`${SHARED_PATH}customTexts/`, cacheCustomTexts),
+                    syncFirebaseSet(`${SHARED_PATH}settings/`, defaultSettings)
+                ]);
+
+                // Yapıyı varsayılana çekip render et
+                renderTableStructure();
+                applyDataToUI();
+                alert("🗑️ Tablo başarıyla ilk ayarlarına sıfırlandı!");
+            }
+        });
+        // ==========================================
+
         async function triggerNotification(title, body) {
             try {
                 if (Notification.permission === "granted") {
@@ -952,11 +1066,8 @@
         }
         updateYksCountdown(); setInterval(updateYksCountdown, 86400000);
 
-        // --- Gelişmiş Çalışma & Mola Sayacı ---
         let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
         let breakSeconds = parseInt(localStorage.getItem("breakSeconds")) || 0;
-        
-        // Durumlar: 'stopped', 'running', 'break'
         let timerState = localStorage.getItem("timerState") || 'stopped';
         let mainInterval = null;
 
@@ -1069,7 +1180,6 @@
             }
         });
 
-        // Mobil Widget Minimize İşlemi
         document.getElementById('minimize-btn').addEventListener('click', (e) => {
             const widget = document.getElementById('timer-widget');
             widget.classList.toggle('minimized');
