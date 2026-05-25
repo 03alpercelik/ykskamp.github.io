@@ -414,18 +414,18 @@
         const app = initializeApp(firebaseConfig);
         database = getDatabase(app);
         
-        async function syncFirebaseSet(path, data) {
+                async function syncFirebaseSet(path, data) {
             if (isOnline) {
-                try { await set(ref(database, path), data); } 
-                catch (e) { addToSyncQueue('set', path, data); }
-            } else { addToSyncQueue('set', path, data); }
+                try { 
+                    await set(ref(database, path), data); 
+                } catch (e) { 
+                    await addToSyncQueue('set', path, data); 
+                }
+            } else { 
+                await addToSyncQueue('set', path, data); 
+            }
         }
-        async function syncFirebaseUpdate(path, data) {
-            if (isOnline) {
-                try { await update(ref(database, path), data); } 
-                catch (e) { addToSyncQueue('update', path, data); }
-            } else { addToSyncQueue('update', path, data); }
-        }
+
 
         async function processSyncQueue() {
             if (!isOnline) return;
@@ -1119,14 +1119,48 @@
             document.getElementById("timer-display").innerText = format(timerSeconds);
             document.getElementById("break-display").innerText = format(breakSeconds);
         };
+        // ==========================================
+        // Gelişmiş Kesintisiz Sayaç Motoru (Arka Plan ve Çevrimdışı Uyumlu)
+        // ==========================================
+        let timerSeconds = parseInt(localStorage.getItem("timerSeconds")) || 0;
+        let breakSeconds = parseInt(localStorage.getItem("breakSeconds")) || 0;
+        let timerState = localStorage.getItem("timerState") || 'stopped'; // 'running', 'break', 'stopped'
+        let mainInterval = null;
+
+        const updateTimerDisplay = () => {
+            const format = (sec) => {
+                const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+                const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                return `${h}:${m}:${s}`;
+            };
+            document.getElementById("timer-display").innerText = format(timerSeconds);
+            document.getElementById("break-display").innerText = format(breakSeconds);
+        };
+
+        // Arka planda geçen süreyi zaman damgalarından kurtarma fonksiyonu
+        const syncTimeWithTimestamp = () => {
+            if (timerState === 'stopped') return;
+
+            const now = Date.now();
+            const lastActiveTimestamp = parseInt(localStorage.getItem("timerLastActiveTimestamp")) || now;
+            const elapsedSeconds = Math.floor((now - lastActiveTimestamp) / 1000);
+
+            if (elapsedSeconds > 0) {
+                if (timerState === 'running') {
+                    timerSeconds += elapsedSeconds;
+                    localStorage.setItem("timerSeconds", timerSeconds);
+                } else if (timerState === 'break') {
+                    breakSeconds += elapsedSeconds;
+                    localStorage.setItem("breakSeconds", breakSeconds);
+                }
+            }
+            localStorage.setItem("timerLastActiveTimestamp", now);
+        };
 
         const tick = () => {
-            if (timerState === 'running') {
-                timerSeconds++; localStorage.setItem("timerSeconds", timerSeconds);
-            } else if (timerState === 'break') {
-                breakSeconds++; localStorage.setItem("breakSeconds", breakSeconds);
-            }
-            localStorage.setItem("timerLastTimestamp", Date.now());
+            // Her saniye hafızadaki zaman damgasıyla senkronize çalıştır
+            syncTimeWithTimestamp();
             updateTimerDisplay();
         };
 
@@ -1137,63 +1171,89 @@
             if (timerState === 'running') {
                 startBtn.innerHTML = "⏸️ Durdur"; startBtn.style.background = "var(--danger-color)";
                 breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
+                breakBtn.style.color = "#000";
             } else if (timerState === 'break') {
                 startBtn.innerHTML = "▶️ Devam Et"; startBtn.style.background = "var(--accent)";
                 breakBtn.innerHTML = "🛑 Molayı Bitir"; breakBtn.style.background = "var(--danger-color)";
+                breakBtn.style.color = "#fff";
             } else {
                 startBtn.innerHTML = "▶️ Başlat"; startBtn.style.background = "var(--accent)";
                 breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
+                breakBtn.style.color = "#000";
             }
         };
 
+        // Uygulama ilk açıldığında arka planda geçen süreyi hemen yakala
         if (timerState !== 'stopped') {
-            const lastTime = parseInt(localStorage.getItem("timerLastTimestamp")) || Date.now();
-            const elapsed = Math.floor((Date.now() - lastTime) / 1000);
-            if (elapsed > 0) {
-                if (timerState === 'running') timerSeconds += elapsed;
-                else if (timerState === 'break') breakSeconds += elapsed;
-            }
+            syncTimeWithTimestamp();
             mainInterval = setInterval(tick, 1000);
         }
-        updateTimerDisplay(); applyUIState();
+        updateTimerDisplay(); 
+        applyUIState();
+
+        // Sekme tekrar aktif olduğunda veya telefon ekranı açıldığında tetiklenir (Kritik Güvence)
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && timerState !== 'stopped') {
+                syncTimeWithTimestamp();
+                updateTimerDisplay();
+            }
+        });
 
         document.getElementById("timer-start-btn").addEventListener("click", () => {
+            syncTimeWithTimestamp(); // Durum değişmeden önce süreyi eşitle
             if (timerState === 'stopped' || timerState === 'break') {
                 timerState = 'running';
+                localStorage.setItem("timerLastActiveTimestamp", Date.now());
                 if (!mainInterval) mainInterval = setInterval(tick, 1000);
             } else {
-                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerState = 'stopped';
+                clearInterval(mainInterval); 
+                mainInterval = null;
             }
             localStorage.setItem("timerState", timerState);
-            localStorage.setItem("timerLastTimestamp", Date.now());
             applyUIState();
+            updateTimerDisplay();
         });
 
         document.getElementById("timer-break-btn").addEventListener("click", () => {
+            syncTimeWithTimestamp(); // Durum değişmeden önce süreyi eşitle
             if (timerState === 'running' || timerState === 'stopped') {
                 timerState = 'break';
+                localStorage.setItem("timerLastActiveTimestamp", Date.now());
                 if (!mainInterval) mainInterval = setInterval(tick, 1000);
             } else if (timerState === 'break') {
-                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerState = 'stopped'; 
+                clearInterval(mainInterval); 
+                mainInterval = null;
             }
             localStorage.setItem("timerState", timerState);
-            localStorage.setItem("timerLastTimestamp", Date.now());
             applyUIState();
+            updateTimerDisplay();
         });
 
         document.getElementById("timer-reset-btn").addEventListener("click", () => {
             if (confirm("Tüm sayaçları sıfırlamak istediğine emin misin?")) {
-                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
-                timerSeconds = 0; breakSeconds = 0;
-                localStorage.setItem("timerState", timerState);
-                localStorage.setItem("timerSeconds", 0); localStorage.setItem("breakSeconds", 0);
-                updateTimerDisplay(); applyUIState();
+                timerState = 'stopped'; 
+                clearInterval(mainInterval); 
+                mainInterval = null;
+                timerSeconds = 0; 
+                breakSeconds = 0;
+                localStorage.setItem("timerState", 'stopped');
+                localStorage.setItem("timerSeconds", 0); 
+                localStorage.setItem("breakSeconds", 0);
+                localStorage.removeItem("timerLastActiveTimestamp");
+                updateTimerDisplay(); 
+                applyUIState();
             }
         });
 
         document.getElementById("timer-save-btn").addEventListener("click", () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
+            
+            // Kaydetmeden önce arka planda sarkan son saniyeleri de hesaba kat
+            syncTimeWithTimestamp();
+            
             const addedHours = timerSeconds / 3600;
             if (timerSeconds < 1) return alert("Aktarmak için önce süreyi başlatmalısın!");
             const lessonName = document.getElementById(`th-subj-${lessonSelect.value}-text`)?.innerText.trim() || `Ders`;
@@ -1207,22 +1267,26 @@
                 let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
                 
                 const taskData = { done: true, hours: baselineHours + addedHours, updatedAt: Date.now() };
-                cacheTasks[taskId] = taskData; saveToIDB('tasks', cacheTasks); applyDataToUI(); 
+                cacheTasks[taskId] = taskData; 
+                saveToIDB('tasks', cacheTasks); 
+                applyDataToUI(); 
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
 
-                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
-                timerSeconds = 0; breakSeconds = 0;
-                localStorage.setItem("timerState", timerState);
-                localStorage.setItem("timerSeconds", 0); localStorage.setItem("breakSeconds", 0);
-                updateTimerDisplay(); applyUIState();
+                timerState = 'stopped'; 
+                clearInterval(mainInterval); 
+                mainInterval = null;
+                timerSeconds = 0; 
+                breakSeconds = 0;
+                localStorage.setItem("timerState", 'stopped');
+                localStorage.setItem("timerSeconds", 0); 
+                localStorage.setItem("breakSeconds", 0);
+                localStorage.removeItem("timerLastActiveTimestamp");
+                updateTimerDisplay(); 
+                applyUIState();
             }
         });
 
-        document.getElementById('minimize-btn').addEventListener('click', (e) => {
-            const widget = document.getElementById('timer-widget');
-            widget.classList.toggle('minimized');
-            e.target.innerText = widget.classList.contains('minimized') ? '▲' : '▼';
-        });
+        
     }); 
 </script>
 </body>
