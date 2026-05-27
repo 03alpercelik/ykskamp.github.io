@@ -11,6 +11,11 @@
     <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     
+    <script>
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -38,14 +43,14 @@
         :root {
             --bg-color: #f8f9fa; --card-bg: #ffffff; --text-color: #2d3436; --secondary-text: #636e72;
             --table-border: #dfe6e9; --header-bg: linear-gradient(135deg, #6c5ce7, #a29bfe);
-            --row-even: #f1f2f6; --row-odd: #ffffff; --highlight: #fdcb6e; --accent: #00b894;
+            --row-even: #f1f2f6; --row-odd: #ffffff; --highlight: #dbeafe; --accent: #00b894;
             --edit-color: #0984e3; --danger-color: #ff7675; --stat-bg: #e0f2f1;
             --past-day-bg: #e2e8f0; --dropdown-hover: #f1f2f6;
         }
         [data-theme="dark"] {
             --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc; --secondary-text: #94a3b8;
             --table-border: #334155; --header-bg: linear-gradient(135deg, #4f46e5, #818cf8);
-            --row-even: #1e293b; --row-odd: #0f172a; --highlight: #eab308; --accent: #10b981;
+            --row-even: #1e293b; --row-odd: #0f172a; --highlight: #1e40af; --accent: #10b981;
             --edit-color: #3b82f6; --danger-color: #ef4444; --stat-bg: #064e3b;
             --past-day-bg: #162032; --dropdown-hover: #334155;
         }
@@ -58,10 +63,10 @@
         .btn-edit.active { animation: pulse 2s infinite; }
         
         @keyframes streak-burn {
-            0% { transform: scale(1); filter: drop-shadow(0 0 2px #ff3d00); }
-            100% { transform: scale(1.06) rotate(-1deg); filter: drop-shadow(0 0 10px #ffea00); }
+            0% { transform: scale(1); filter: drop-shadow(0 0 2px #00d2ff); }
+            100% { transform: scale(1.06) rotate(-1deg); filter: drop-shadow(0 0 10px #0066ff); }
         }
-        .streak-active { animation: streak-burn 1.2s ease-in-out infinite alternate; font-weight: 900 !important; box-shadow: 0 0 12px #ff6d00, inset 0 0 6px #d50000; }
+        .streak-active { animation: streak-burn 1.2s ease-in-out infinite alternate; font-weight: 900 !important; box-shadow: 0 0 12px #2563eb, inset 0 0 6px #1d4ed8; }
         
         #schedule-table th:first-child, #schedule-table td:first-child { position: sticky !important; left: 0; z-index: 15; border-right: 2px solid var(--table-border); }
         #schedule-table thead th:first-child { z-index: 25; } 
@@ -75,13 +80,10 @@
         .past-day:hover { opacity: 1; filter: none; }
         .past-day td:first-child { background-color: var(--past-day-bg) !important; }
 
-        /* ==========================================
-           YÜKSEK KONTRASTLI VE GÜVENLİ BUGÜN SATIRI STİLLERİ (MAVİ)
-           ========================================== */
-        #schedule-table tr.today-highlight td { background-color: #fef08a !important; color: #1e293b !important; font-weight: 700 !important; }
+        #schedule-table tr.today-highlight td { background-color: #dbeafe !important; color: #1e293b !important; font-weight: 700 !important; }
         [data-theme="dark"] #schedule-table tr.today-highlight td { background-color: #1e40af !important; color: #ffffff !important; }
         
-        #schedule-table tr.today-highlight td:first-child { background-color: #fef08a !important; color: #1e293b !important; }
+        #schedule-table tr.today-highlight td:first-child { background-color: #dbeafe !important; color: #1e293b !important; }
         [data-theme="dark"] #schedule-table tr.today-highlight td:first-child { background-color: #1e40af !important; color: #ffffff !important; }
 
         #schedule-table tr.today-highlight .task-label,
@@ -94,18 +96,18 @@
         [data-theme="dark"] #schedule-table tr.today-highlight .completed-text,
         [data-theme="dark"] #schedule-table tr.today-highlight .date-cell { color: #ffffff !important; }
 
-        #schedule-table tr.today-highlight .time-tag { background-color: rgba(0,0,0,0.08) !important; color: #1e293b !important; }
-        [data-theme="dark"] #schedule-table tr.today-highlight .time-tag { background-color: rgba(255,255,255,0.2) !important; color: #ffffff !important; }
+        #schedule-table tr.today-highlight .time-tag { background-color: rgba(30, 64, 175, 0.1) !important; color: #1e293b !important; }
+        [data-theme="dark"] #schedule-table tr.today-highlight .time-tag { background-color: rgba(255, 255, 255, 0.2) !important; color: #ffffff !important; }
 
-        #schedule-table tr.today-highlight .note-input { border-color: rgba(0,0,0,0.2) !important; color: #1e293b !important; background-color: rgba(255,255,255,0.6) !important; }
-        [data-theme="dark"] #schedule-table tr.today-highlight .note-input { border-color: rgba(255,255,255,0.25) !important; color: #ffffff !important; background-color: rgba(0,0,0,0.4) !important; }
+        #schedule-table tr.today-highlight .note-input { border-color: rgba(30, 64, 175, 0.2) !important; color: #1e293b !important; background-color: rgba(255,255,255,0.7) !important; }
+        [data-theme="dark"] #schedule-table tr.today-highlight .note-input { border-color: rgba(255,255,255,0.25) !important; color: #ffffff !important; background-color: rgba(0,0,0,0.35) !important; }
         #schedule-table tr.today-highlight .note-input::placeholder { color: #64748b !important; }
         [data-theme="dark"] #schedule-table tr.today-highlight .note-input::placeholder { color: #cbd5e1 !important; }
 
-        #schedule-table tr.today-highlight .hour-badge { background-color: #1e293b !important; color: #fef08a !important; }
+        #schedule-table tr.today-highlight .hour-badge { background-color: #1e40af !important; color: #ffffff !important; }
         [data-theme="dark"] #schedule-table tr.today-highlight .hour-badge { background-color: #ffffff !important; color: #1e40af !important; }
         
-        #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(0,0,0,0.3) !important; color: #1e293b !important; opacity: 0.9; }
+        #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(30, 64, 175, 0.3) !important; color: #1e293b !important; opacity: 0.9; }
         [data-theme="dark"] #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(255,255,255,0.4) !important; color: #ffffff !important; opacity: 0.9; }
 
         .completed-text { text-decoration: line-through; opacity: 0.7; }
@@ -174,7 +176,7 @@
     <div class="flex flex-col md:flex-row justify-between items-center gap-3 text-sm font-semibold mb-2 text-slate-700 dark:text-slate-300">
         <span id="current-date-info" class="text-base font-bold text-slate-800 dark:text-white">YKS Kamp Takvimi</span>
         <div class="flex flex-wrap gap-2 items-center justify-center">
-            <span class="px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-red-600 via-orange-500 to-yellow-500 text-white shadow-md border-none" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
+            <span class="px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-600 text-white border-none shadow-md" id="streak-counter" title="Hedefe ulaşılan peş peşe günler">🔥 Seri: 0</span>
             <span class="px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-800 text-orange-400 tracking-wide border-none" id="yks-countdown">YKS: Hesaplaşıyor...</span>
             <span id="progress-text" class="text-xs font-bold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">%0 Tamamlandı</span>
         </div>
@@ -264,7 +266,7 @@
         });
     }
     const dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open("YksKampProDB", 2);
+        const req = indexedDB.open("YksCampProDB", 2);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains("kampCache")) { db.createObjectStore("kampCache"); }
@@ -383,6 +385,7 @@
         let currentStartDate = DEFAULT_START_DATE;
         let cacheTasks = {}; let cacheNotes = {}; let cacheCustomTexts = {};
         let isEditMode = false;
+        let lastAutoNotifiedDate = "";
         const days = ["Pazar", "Pzt", "Salı", "Çarş", "Perş", "Cuma", "Cmt"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const [idbTasks, idbNotes, idbTexts, idbSettings] = await Promise.all([
@@ -592,9 +595,6 @@
                 }
             });
 
-            // ==========================================
-            // ASLA KIRILMAYAN, KUSURSUZ ÇALIŞAN UKALA SERİ MOTORU
-            // ==========================================
             let currentStreak = 0;
             const safeTarget = currentTarget - 0.05;
             
@@ -640,9 +640,12 @@
             const streakEl = document.getElementById('streak-counter');
             if (streakEl) {
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
-                streakEl.classList.toggle('streak-active', currentStreak > 0);
+                if (currentStreak > 0) {
+                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 text-white shadow-md border-none steak-active";
+                } else {
+                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-600 text-white border-none";
+                }
             }
-            // ==========================================
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
@@ -684,6 +687,8 @@
                 lineChartInstance.data.datasets[0].backgroundColor = isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)';
                 lineChartInstance.options.scales.x.grid.color = gridColor;
                 lineChartInstance.options.scales.y.grid.color = gridColor;
+                lineChartInstance.options.scales.x.ticks.color = textColor;
+                lineChartInstance.options.scales.y.ticks.color = textColor;
                 lineChartInstance.options.scales.y.max = Math.max(12, currentTarget + 2);
                 lineChartInstance.update();
             } else {
@@ -698,7 +703,11 @@
                         }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                        scales: { x: { grid: { color: gridColor } }, y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor } } } }
+                        scales: { 
+                            x: { grid: { color: gridColor }, ticks: { color: textColor } }, 
+                            y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor }, ticks: { color: textColor } } 
+                        } 
+                    }
                 });
             }
 
@@ -736,14 +745,16 @@
                     if (isChecked) { textSpan.classList.add("completed-text"); globalCheckedCount++; } 
                     else { textSpan.classList.remove("completed-text"); }
                 });
-                row.querySelectorAll('.editable-text').forEach(el => {
-                    const id = el.getAttribute('data-edit-id');
-                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) { el.innerText = cacheCustomTexts[id]; }
-                });
                 row.querySelectorAll('.note-input').forEach(input => {
                     if (document.activeElement !== input) input.value = cacheNotes[input.id] || "";
                 });
             });
+            
+            document.querySelectorAll('.editable-text').forEach(el => {
+                const id = el.getAttribute('data-edit-id');
+                if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) { el.innerText = cacheCustomTexts[id]; }
+            });
+
             const percent = totalTasks === 0 ? 0 : Math.round((globalCheckedCount / totalTasks) * 100);
             progressFill.style.width = `${percent}%`;
             progressText.innerText = `%${percent} Tamamlandı`;
@@ -793,14 +804,18 @@
                                 
                 const taskId = e.target.id;
                 let taskData = null;
+                const existingData = cacheTasks[taskId];
                                 
                 if (isChecked) {
                     const colIndex = parseInt(taskId.split('-')[2]);
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                    const existingData = cacheTasks[taskId];
                     const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
-                    const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
+                    const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
                     taskData = { done: true, hours: safeHours, updatedAt: Date.now() };
+                } else {
+                    if (existingData && existingData.hours > 0) {
+                        taskData = { done: false, hours: existingData.hours, updatedAt: Date.now() };
+                    }
                 }
                                 
                 if(taskData) cacheTasks[taskId] = taskData; else delete cacheTasks[taskId];
@@ -822,15 +837,20 @@
                                 
                 rowTasks.forEach(box => { 
                     const colIndex = parseInt(box.id.split('-')[2]);
+                    const existingData = cacheTasks[box.id];
                     if (newState) {
                         const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                        const existingData = cacheTasks[box.id];
                         const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
-                        const safeHours = (existingData && existingData.hours > calculatedHrs) ? existingData.hours : calculatedHrs;
+                        const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
                         const data = { done: true, hours: safeHours, updatedAt: now };
                         updates[box.id] = data; cacheTasks[box.id] = data;
                     } else {
-                        updates[box.id] = null; delete cacheTasks[box.id];
+                        if (existingData && existingData.hours > 0) {
+                            const data = { done: false, hours: existingData.hours, updatedAt: now };
+                            updates[box.id] = data; cacheTasks[box.id] = data;
+                        } else {
+                            updates[box.id] = null; delete cacheTasks[box.id];
+                        }
                     }
                     box.checked = newState; 
                     box.nextElementSibling?.classList.toggle("completed-text", newState);
@@ -1036,18 +1056,37 @@
                 alert("🗑️ Tablo başarıyla ilk ayarlarına sıfırlandı!");
             }
         });
+
         async function triggerNotification(title, body) {
-            try {
-                if (Notification.permission === "granted") {
-                    const options = { body: body, icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", requireInteraction: true };
-                    if ('serviceWorker' in navigator) {
+            if (!("Notification" in window)) {
+                alert(`🔔 ${title}\n\n${body}`);
+                return;
+            }
+            const options = { 
+                body: body, 
+                icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
+                badge: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
+                requireInteraction: true 
+            };
+            if (Notification.permission === "granted") {
+                if ('serviceWorker' in navigator) {
+                    try {
                         const reg = await navigator.serviceWorker.getRegistration();
-                        if (reg && reg.showNotification) { reg.showNotification(title, options); return; }
-                    }
-                    new Notification(title, options);
-                } else { alert(`🔔 ${title}\n\n${body}`); }
-            } catch (error) { alert(`🔔 ${title}\n\n${body}`); }
+                        if (reg && 'showNotification' in reg) {
+                            await reg.showNotification(title, options);
+                            return;
+                        }
+                    } catch (e) { console.warn("SW bildirim hatası, standarda dönülüyor:", e); }
+                }
+                try { new Notification(title, options); } catch (err) { alert(`🔔 ${title}\n\n${body}`); }
+            } else if (Notification.permission !== "denied") {
+                const permission = await Notification.requestPermission();
+                if (permission === "granted") { triggerNotification(title, body); } else { alert(`🔔 ${title}\n\n${body}`); }
+            } else {
+                alert(`🔔 ${title}\n\n${body}`);
+            }
         }
+
         async function sendTodayNotification() {
             const todayRow = document.querySelector('.today-highlight');
             const motivasyonSozleri = [
@@ -1072,11 +1111,54 @@
             });
             await triggerNotification("Bugün Yapılacaklar", `${tasksList.join('\n') || "Görev girilmemiş."}\n\n💡 ${rastgeleSoz}`);
         }
+
+        function getFirstLessonTime() {
+            const firstTimeEl = document.querySelector('[data-edit-id="th-time-0"]');
+            const timeStr = firstTimeEl ? firstTimeEl.innerText.trim() : "09:30 - 11:30";
+            const startPart = timeStr.split('-')[0].trim();
+            const match = startPart.match(/(\d{1,2})[:\.](\d{2})/);
+            if (match) {
+                return { hours: parseInt(match[1]), minutes: parseInt(match[2]) };
+            }
+            return { hours: 9, minutes: 30 };
+        }
+
+        async function checkAutomatedNotifications() {
+            const now = new Date();
+            const todayStr = now.toDateString();
+            if (lastAutoNotifiedDate === todayStr) return;
+            
+            const firstLessonTime = getFirstLessonTime();
+            let targetHours = firstLessonTime.hours;
+            let targetMinutes = firstLessonTime.minutes - 30;
+            
+            if (targetMinutes < 0) {
+                targetHours -= 1;
+                targetMinutes += 60;
+            }
+            if (targetHours < 0) {
+                targetHours = 0; targetMinutes = 0;
+            }
+            
+            if (now.getHours() === targetHours && now.getMinutes() === targetMinutes) {
+                lastAutoNotifiedDate = todayStr;
+                const firstSubjEl = document.getElementById("th-subj-0-text");
+                const firstSubjName = firstSubjEl ? firstSubjEl.innerText.trim() : "İlk Ders";
+                
+                await triggerNotification(
+                    "📚 Ders Başlıyor!", 
+                    `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak! Hazırlıklarını tamamla. 🚀`
+                );
+            }
+        }
+        setInterval(checkAutomatedNotifications, 30000);
+
         document.getElementById('notify-btn').addEventListener('click', () => {
             if (!("Notification" in window)) return alert("Tarayıcın bildirimleri desteklemiyor.");
             Notification.requestPermission().then(permission => { if (permission === "granted") alert("Bildirim izinleri verildi."); });
         });
         document.getElementById('test-notify-btn').addEventListener('click', sendTodayNotification);
+
         function updateYksCountdown() {
             const distance = new Date("2026-06-20T10:15:00").getTime() - new Date().getTime();
             const el = document.getElementById("yks-countdown");
@@ -1099,22 +1181,26 @@
             document.getElementById("timer-display").innerText = format(timerSeconds);
             document.getElementById("break-display").innerText = format(breakSeconds);
         };
+        
         const syncTimeWithTimestamp = () => {
             if (timerState === 'stopped') return;
             const now = Date.now();
             const lastActiveTimestamp = parseInt(localStorage.getItem("timerLastActiveTimestamp")) || now;
-            const elapsedSeconds = Math.floor((now - lastActiveTimestamp) / 1000);
-            if (elapsedSeconds > 0) {
+            const elapsedMs = now - lastActiveTimestamp;
+            
+            if (elapsedMs >= 1000) {
+                const addedSec = Math.floor(elapsedMs / 1000);
                 if (timerState === 'running') {
-                    timerSeconds += elapsedSeconds;
+                    timerSeconds += addedSec;
                     localStorage.setItem("timerSeconds", timerSeconds);
                 } else if (timerState === 'break') {
-                    breakSeconds += elapsedSeconds;
+                    breakSeconds += addedSec;
                     localStorage.setItem("breakSeconds", breakSeconds);
                 }
+                localStorage.setItem("timerLastActiveTimestamp", lastActiveTimestamp + (addedSec * 1000));
             }
-            localStorage.setItem("timerLastActiveTimestamp", now);
         };
+        
         const tick = () => {
             syncTimeWithTimestamp();
             updateTimerDisplay();
@@ -1216,6 +1302,19 @@
                 saveToIDB('tasks', cacheTasks); 
                 applyDataToUI(); 
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
+
+                let currentLessonIdx = parseInt(lessonSelect.value);
+                let nextLessonIdx = currentLessonIdx;
+                for (let i = 1; i <= currentCols; i++) {
+                    let checkIdx = (currentLessonIdx + i) % currentCols;
+                    const checkHeaderTime = document.querySelector(`th span[data-edit-id="th-time-${checkIdx}"]`);
+                    if (checkHeaderTime && getHoursFromText(checkHeaderTime.innerText) > 0) {
+                        nextLessonIdx = checkIdx;
+                        break;
+                    }
+                }
+                lessonSelect.value = nextLessonIdx;
+
                 timerState = 'stopped'; 
                 clearInterval(mainInterval); 
                 mainInterval = null;
