@@ -297,6 +297,7 @@
     let activeSavingCount = 0; 
     let syncHasError = false;
 
+    // XSS Korumalı Güvenli Node Atama Fonksiyonları
     function escapeHTML(str) {
         if (!str) return "";
         return String(str)
@@ -459,7 +460,6 @@
                     return;
                 }
 
-                // STRES TESTİ GÜNCELLEMESİ: activeSavingCount yönetimi ağ isteklerine tam bağımlı hale getirildi.
                 for (const item of allItems) {
                     if (!isOnline) { syncHasError = true; break; }
                     activeSavingCount++;
@@ -570,7 +570,6 @@
                 if (numMatch) parsedHours = parseFloat(numMatch[1].replace(',', '.')) || 0;
             }
             
-            // STRES TESTİ GÜNCELLEMESİ: Hatalı girişlerle grafiklerin patlaması kesin olarak engellenir
             if (isNaN(parsedHours) || parsedHours < 0) return 0;
             return Math.min(24, parsedHours); 
         };
@@ -703,17 +702,23 @@
             statsPanel.innerHTML = statsHtml;
                         
             const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-            const gridColor = isDark ? "#334155" : "#dfe6e9";
-            const textColor = isDark ? "#f8fafc" : "#2d3436";
+            
+            // KOYU TEMA GÖRÜNÜRLÜK GÜNCELLEMESİ: bcd7ca59-5553-4950-833b-ab6372220ad2 hatasını gidermek için 
+            // eksen çizgileri belirginleştirildi ve yazı rengi net, yüksek kontrastlı neon fildişi beyazına (#f1f5f9) çekildi.
+            const gridColor = isDark ? "rgba(255, 255, 255, 0.12)" : "#dfe6e9";
+            const textColor = isDark ? "#f1f5f9" : "#2d3436";
                         
             Chart.defaults.color = textColor;
             Chart.defaults.font.family = "'Inter', sans-serif";
-            const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031', '#4bc0c0', '#ff9f40', '#9966ff', '#ff6384'];
+            const colors = ['#a29bfe', '#00b894', '#fdcb6e', '#ff7675', '#0984e3', '#e84393', '#00cec9', '#d63031', '#e17055', '#20bf6b'];
             
             if (chartInstance) {
                 chartInstance.data.labels = subjNames;
                 chartInstance.data.datasets[0].data = subjTotalHoursArr;
                 chartInstance.data.datasets[0].backgroundColor = colors.slice(0, currentCols);
+                if (chartInstance.options.plugins && chartInstance.options.plugins.legend && chartInstance.options.plugins.legend.labels) {
+                    chartInstance.options.plugins.legend.labels.color = textColor;
+                }
                 chartInstance.update('none');
             } else {
                 chartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
@@ -730,6 +735,10 @@
                 lineChartInstance.data.labels = dailyLabels;
                 lineChartInstance.data.datasets[0].data = dailyData;
                 lineChartInstance.options.scales.y.max = computedYMax;
+                lineChartInstance.options.scales.x.grid.color = gridColor;
+                lineChartInstance.options.scales.x.ticks.color = textColor;
+                lineChartInstance.options.scales.y.grid.color = gridColor;
+                lineChartInstance.options.scales.y.ticks.color = textColor;
                 lineChartInstance.update('none');
             } else {
                 lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
@@ -738,7 +747,7 @@
                         labels: dailyLabels,
                         datasets: [{
                             label: 'Günlük Çalışma (Saat)', data: dailyData,
-                            borderColor: '#6c5ce7', backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)',
+                            borderColor: '#a29bfe', backgroundColor: isDark ? 'rgba(162, 155, 254, 0.15)' : 'rgba(108, 92, 231, 0.1)',
                             borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#00b894', pointRadius: 4
                         }]
                     },
@@ -818,7 +827,6 @@
                 });
             });
             
-            // STRES TESTİ GÜNCELLEMESİ: Düzenleme modundayken uzak Firebase güncellemelerinin imleci (focus) bozması engellendi.
             if (!isEditMode) {
                 document.querySelectorAll('.editable-text').forEach(el => {
                     const id = el.getAttribute('data-edit-id');
@@ -914,7 +922,6 @@
                 if(checkbox && checkbox.type === "checkbox") checkbox.click();
             }
             if (e.target.classList.contains("btn-complete-day")) {
-                // STRES TESTİ GÜNCELLEMESİ: Double-click (Spam) koruma kilidi
                 if (e.target.hasAttribute("data-locked")) return;
                 e.target.setAttribute("data-locked", "true");
                 setTimeout(() => e.target.removeAttribute("data-locked"), 100);
@@ -1109,7 +1116,6 @@
                             currentTarget = 8; currentCols = 5; currentRowCount = calculatedRows;
                                                     
                         } else {
-                            // STRES TESTİ GÜNCELLEMESİ: Bozuk import şemalarına karşı mutlak nesne (Object) zorlaması
                             const isObject = (val) => val !== null && typeof val === 'object' && !Array.isArray(val);
                             cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
                             cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
@@ -1350,7 +1356,6 @@
             const addedHours = timerSeconds / 3600;
             if (timerSeconds < 1) return alert("Aktarmak için önce süreyi başlatmalısın!");
 
-            // STRES TESTİ GÜNCELLEMESİ: Küçültülmüş tablolarda hayalet hücre (Out of Bounds) veri kaybı engeli
             const targetDay = parseInt(daySelect.value);
             const targetLesson = parseInt(lessonSelect.value);
             if (isNaN(targetDay) || targetDay >= currentRowCount || isNaN(targetLesson) || targetLesson >= currentCols) {
