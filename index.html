@@ -108,7 +108,7 @@
         [data-theme="dark"] #schedule-table tr.today-highlight .hour-badge { background-color: #ffffff !important; color: #1e40af !important; }
         
         #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(30, 64, 175, 0.3) !important; color: #1e293b !important; opacity: 0.9; }
-        [data-theme="dark"] #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(255,255,255,0.4) !important; color: #ffffff !important; opacity: 0.9; }
+        [data-theme="dark"] #schedule-table tr.today-highlight .btn-complete-day { border-color: rgba(255, 255, 255, 0.4) !important; color: #ffffff !important; opacity: 0.9; }
 
         .completed-text { text-decoration: line-through; opacity: 0.7; }
         body.edit-mode .editable-text { border: 1px dashed #00b894; background-color: rgba(0, 184, 148, 0.1); cursor: text; }
@@ -366,11 +366,11 @@
         projectId: "yks-kamp-13f68"
     };
     const SHARED_PATH = "yks_kamp_pro_shared/kamp/";
-    const DEFAULT_START_DATE = "2026-05-04";
+    const DEFAULT_START_DATE = "2026-05-26";
     const DEFAULT_YKS_LESSONS = [
         { name: "Rutinler", time: "09:30 - 11:30" }, { name: "TYT Mat", time: "12:30 - 14:00" },
-        { name: "AYT Mat", time: "14:15 - 15:45" }, { name: "AYT Fizik", time: "16:30 - 18:30" },
-        { name: "AYT Kimya", time: "19:30 - 21:00" }, { name: "AYT Biyoloji", time: "21:15 - 22:15" }
+        { name: "AYT Mat", time: "14:15 - 15:45" }, { name: "AYT Kimya", time: "16:30 - 18:00" },
+        { name: "AYT Biyoloji", time: "18:15 - 19:15" }
     ];
     let database, tasksRef, notesRef, customTextRef, settingsRef;
     document.addEventListener("DOMContentLoaded", async () => {
@@ -385,7 +385,7 @@
         let currentStartDate = DEFAULT_START_DATE;
         let cacheTasks = {}; let cacheNotes = {}; let cacheCustomTexts = {};
         let isEditMode = false;
-        let lastAutoNotifiedDate = "";
+        
         const days = ["Pazar", "Pzt", "Salı", "Çarş", "Perş", "Cuma", "Cmt"];
         const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
         const [idbTasks, idbNotes, idbTexts, idbSettings] = await Promise.all([
@@ -531,6 +531,7 @@
         };
         const toDateStr = (d) => { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
         const updateDatesInTable = () => {
+            if (!currentStartDate || !currentStartDate.includes('-')) { currentStartDate = DEFAULT_START_DATE; }
             const parts = currentStartDate.split('-');
             const startDateObj = new Date(parts[0], parts[1] - 1, parts[2]);
             const dateCells = document.querySelectorAll(".date-cell");
@@ -641,7 +642,7 @@
             if (streakEl) {
                 streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
                 if (currentStreak > 0) {
-                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 text-white shadow-md border-none steak-active";
+                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 text-white shadow-md border-none streak-active";
                 } else {
                     streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-600 text-white border-none";
                 }
@@ -905,6 +906,7 @@
                 editables.forEach(el => { el.removeAttribute("contenteditable"); el.innerText = el.innerText.trim(); }); 
             }
         });
+        document.documentElement.setAttribute("data-theme", savedTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
             const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", theme);
@@ -940,7 +942,7 @@
         });
         
         document.getElementById("import-file").addEventListener("change", (e) => {
-            const file = e.target.files[0];
+            const file = e.target.files[file.length ? 0 : 0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (event) => {
@@ -955,15 +957,15 @@
                                                         
                             cacheCustomTexts["th-subj-0"] = "Rutinler";
                             cacheCustomTexts["th-subj-1"] = "Matematik";
-                            cacheCustomTexts["th-subj-2"] = "Fizik";
-                            cacheCustomTexts["th-subj-3"] = "Kimya";
-                            cacheCustomTexts["th-subj-4"] = "Biyoloji";
+                            cacheCustomTexts["th-subj-2"] = "Kimya";
+                            cacheCustomTexts["th-subj-3"] = "Biyoloji";
+                            cacheCustomTexts["th-subj-4"] = "Ders 5";
                                                         
-                            cacheCustomTexts["th-time-0"] = "Rutinler";
-                            cacheCustomTexts["th-time-1"] = "AYT / TYT";
-                            cacheCustomTexts["th-time-2"] = "AYT Fizik";
-                            cacheCustomTexts["th-time-3"] = "AYT Kimya";
-                            cacheCustomTexts["th-time-4"] = "AYT Biyoloji";
+                            cacheCustomTexts["th-time-0"] = "09:30 - 11:30";
+                            cacheCustomTexts["th-time-1"] = "12:30 - 14:00";
+                            cacheCustomTexts["th-time-2"] = "14:15 - 15:45";
+                            cacheCustomTexts["th-time-3"] = "16:30 - 18:00";
+                            cacheCustomTexts["th-time-4"] = "18:15 - 19:15";
                             parsed.study_schedule.forEach((dayData, r) => {
                                 if (Array.isArray(dayData.routine)) {
                                     cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
@@ -971,11 +973,11 @@
                                     cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
                                 }
                                 cacheCustomTexts[`task-text-${r}-1`] = dayData.math || "-";
-                                cacheCustomTexts[`task-text-${r}-2`] = dayData.physics || "-";
-                                cacheCustomTexts[`task-text-${r}-3`] = dayData.chemistry || "-";
-                                cacheCustomTexts[`task-text-${r}-4`] = dayData.biology || "-";
+                                cacheCustomTexts[`task-text-${r}-2`] = dayData.chemistry || "-";
+                                cacheCustomTexts[`task-text-${r}-3`] = dayData.biology || "-";
+                                cacheCustomTexts[`task-text-${r}-4`] = "-";
                             });
-                            currentStartDate = parsed.study_schedule[0]?.date || "2026-05-25";
+                            currentStartDate = parsed.study_schedule[0]?.date || "2026-05-26";
                             currentTarget = 8;
                             currentCols = 5;
                             currentRowCount = parsed.study_schedule.length;
@@ -1126,32 +1128,27 @@
         async function checkAutomatedNotifications() {
             const now = new Date();
             const todayStr = now.toDateString();
-            if (lastAutoNotifiedDate === todayStr) return;
+            
+            let storedLastNotify = localStorage.getItem("lastAutoNotifiedDate") || "";
+            if (storedLastNotify === todayStr) return;
             
             const firstLessonTime = getFirstLessonTime();
-            let targetHours = firstLessonTime.hours;
-            let targetMinutes = firstLessonTime.minutes - 30;
+            const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), firstLessonTime.hours, firstLessonTime.minutes, 0, 0);
             
-            if (targetMinutes < 0) {
-                targetHours -= 1;
-                targetMinutes += 60;
-            }
-            if (targetHours < 0) {
-                targetHours = 0; targetMinutes = 0;
-            }
+            targetTime.setMinutes(targetTime.getMinutes() - 30);
             
-            if (now.getHours() === targetHours && now.getMinutes() === targetMinutes) {
-                lastAutoNotifiedDate = todayStr;
+            if (now >= targetTime && (now.getTime() - targetTime.getTime() < 30 * 60 * 1000)) {
+                localStorage.setItem("lastAutoNotifiedDate", todayStr);
                 const firstSubjEl = document.getElementById("th-subj-0-text");
                 const firstSubjName = firstSubjEl ? firstSubjEl.innerText.trim() : "İlk Ders";
                 
                 await triggerNotification(
                     "📚 Ders Başlıyor!", 
-                    `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak! Hazırlıklarını tamamla. 🚀`
+                    `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak veya başladı! Hazırlıklarını tamamla. 🚀`
                 );
             }
         }
-        setInterval(checkAutomatedNotifications, 30000);
+        setInterval(checkAutomatedNotifications, 15000);
 
         document.getElementById('notify-btn').addEventListener('click', () => {
             if (!("Notification" in window)) return alert("Tarayıcın bildirimleri desteklemiyor.");
@@ -1230,9 +1227,12 @@
         updateTimerDisplay(); 
         applyUIState();
         document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible" && timerState !== 'stopped') {
-                syncTimeWithTimestamp();
-                updateTimerDisplay();
+            if (document.visibilityState === "visible") {
+                if (timerState !== 'stopped') {
+                    syncTimeWithTimestamp();
+                    updateTimerDisplay();
+                }
+                checkAutomatedNotifications();
             }
         });
         document.getElementById("timer-start-btn").addEventListener("click", () => {
@@ -1339,6 +1339,8 @@
                 e.target.innerText = '▼';
             }
         });
+        
+        checkAutomatedNotifications();
     });
 </script>
 </body>
