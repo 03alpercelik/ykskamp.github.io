@@ -546,7 +546,6 @@
             document.getElementById("daily-target").value = currentTarget;
             document.getElementById("col-count").value = currentCols;
             populateTimerDropdowns();
-            checkBackupStatus();
         };
         renderTableStructure();
                 
@@ -625,7 +624,8 @@
                 let rowTotalHours = 0;
                 let dateCell = row.querySelector('.date-cell');
                 let rowDateStr = dateCell ? dateCell.dataset.fulldate : null; 
-                dailyLabels.push(`G. ${rowIndex + 1}`);
+                
+                dailyLabels.push(`${rowIndex + 1}`);
                 
                 row.querySelectorAll(".task-checkbox").forEach((box, cIndex) => {
                     if (cIndex >= currentCols) return; 
@@ -696,7 +696,7 @@
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
                 const el = document.getElementById(`th-subj-${i}-text`);
-                subjNames.push(el ? el.textContent.split(' ')[0] : `Ders ${i+1}`);
+                subjNames.push(el ? el.textContent.trim() : `Ders ${i+1}`);
             }
             let statsHtml = `<div class="stat-badge bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-md flex gap-1.5 items-center stat-hours border-transparent bg-teal-50 dark:bg-emerald-950/40" title="Çalışılan / Kalan Toplam Saat">⏱️ <span class="text-emerald-500">${completedHours.toFixed(1)}s</span> / <span class="text-emerald-500">${remainingHours.toFixed(1)}s</span></div>`;
             for(let i=0; i<currentCols; i++) {
@@ -738,6 +738,7 @@
                 lineChartInstance.options.scales.y.max = computedYMax;
                 lineChartInstance.options.scales.x.grid.color = gridColor;
                 lineChartInstance.options.scales.x.ticks.color = textColor;
+                lineChartInstance.options.scales.x.ticks.autoSkip = false;
                 lineChartInstance.options.scales.y.grid.color = gridColor;
                 lineChartInstance.options.scales.y.ticks.color = textColor;
                 lineChartInstance.update('none');
@@ -754,7 +755,7 @@
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                         scales: { 
-                            x: { grid: { color: gridColor }, ticks: { color: textColor } }, 
+                            x: { grid: { color: gridColor }, ticks: { color: textColor, autoSkip: false } }, 
                             y: { min: 0, max: computedYMax, grid: { color: gridColor }, ticks: { color: textColor } } 
                         } 
                     }
@@ -861,7 +862,7 @@
         });
 
         onValue(settingsRef, (snapshot) => {
-            if (isImporting) return; 
+            if (isImporting) return;
             const s = snapshot.val() || {};
             const newCols = Math.min(10, Math.max(1, s.colCount || 5)); 
             const newRows = Math.min(100, Math.max(7, s.rowCount || 17));
@@ -1120,16 +1121,45 @@
                         await saveBackupSnapshot();
 
                         const isObject = (val) => val !== null && typeof val === 'object' && !Array.isArray(val);
-                        cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
-                        cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
-                        cacheCustomTexts = isObject(parsed.customTexts) ? parsed.customTexts : {};
                         
-                        const s = parsed.settings || {};
-                        currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5)); 
-                        currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
-                        currentStartDate = (s.startDate && !isNaN(Date.parse(s.startDate))) ? s.startDate : DEFAULT_START_DATE;
-                        currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
-                        
+                        if (parsed.study_schedule && Array.isArray(parsed.study_schedule)) {
+                            let calculatedRows = Math.min(100, Math.max(7, parsed.study_schedule.length));
+                            cacheTasks = {}; cacheNotes = {}; cacheCustomTexts = {};
+                                                        
+                            for (let i = 0; i < 10; i++) {
+                                const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
+                                cacheCustomTexts[`th-subj-${i}`] = defaultDef.name;
+                                cacheCustomTexts[`th-time-${i}`] = defaultDef.time;
+                            }
+                            
+                            parsed.study_schedule.forEach((dayData, r) => {
+                                if (r >= calculatedRows) return;
+                                if (Array.isArray(dayData.routine)) cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
+                                else cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
+                                
+                                cacheCustomTexts[`task-text-${r}-1`] = dayData.math || "-";
+                                cacheCustomTexts[`task-text-${r}-2`] = dayData.chemistry || "-";
+                                cacheCustomTexts[`task-text-${r}-3`] = dayData.biology || "-";
+                                
+                                for(let col=4; col<10; col++) {
+                                    if(dayData[`column_${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = dayData[`column_${col}`];
+                                    else if(!cacheCustomTexts[`task-text-${r}-${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = "-";
+                                }
+                            });
+                            currentStartDate = (parsed.study_schedule[0] && parsed.study_schedule[0].date && !isNaN(Date.parse(parsed.study_schedule[0].date))) ? parsed.study_schedule[0].date : DEFAULT_START_DATE;
+                            currentTarget = 8; currentCols = 5; currentRowCount = calculatedRows;
+                                                    
+                        } else {
+                            cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
+                            cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
+                            cacheCustomTexts = isObject(parsed.customTexts) ? parsed.customTexts : {};
+                            
+                            const s = parsed.settings || {};
+                            currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5)); 
+                            currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
+                            currentStartDate = (s.startDate && !isNaN(Date.parse(s.startDate))) ? s.startDate : DEFAULT_START_DATE;
+                            currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
+                        }
                         const settingsObj = { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount };
                         
                         if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
@@ -1212,7 +1242,7 @@
                 }
             } catch(e) {
                 isImporting = false;
-                alert("❌ Geri getirme sırasında bir hata oluştu: " + e.message);
+                alert("❌ Hata Geri Yükleme Raporu: " + e.message);
             }
         });
         
@@ -1304,6 +1334,7 @@
             
             const firstLessonTime = getFirstLessonTime();
             const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), firstLessonTime.hours, firstLessonTime.minutes, 0, 0);
+            
             targetTime.setMinutes(targetTime.getMinutes() - 30);
             
             if (now >= targetTime && (now.getTime() - targetTime.getTime() < 30 * 60 * 1000)) {
