@@ -280,7 +280,7 @@
             const db = await dbPromise;
             const tx = db.transaction("kampCache", "readwrite");
             tx.objectStore("kampCache").put(data, key);
-        } catch(e) { console.warn("IDB Save Error:", e); }
+        } catch(e) { console.warn("IDB Kayıt Hatası:", e); }
     }
     async function getFromIDB(key) {
         try {
@@ -295,6 +295,7 @@
     
     let isOnline = navigator.onLine;
     let activeSavingCount = 0; 
+    let syncHasError = false;
 
     function escapeHTML(str) {
         if (!str) return "";
@@ -324,30 +325,25 @@
         if (!cs) return;
         
         if (activeSavingCount > 0) {
-            cs.innerHTML = "⏳ Kaydediliyor...";
+            cs.textContent = "⏳ Kaydediliyor...";
             cs.className = "connection-status status-syncing text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
             return;
         }
         
         const qCount = await getQueueCount();
         
+        if (syncHasError && isOnline) {
+            cs.textContent = `⚠️ Eşitleme Hatası (${qCount} Bekliyor) | Yeniden Denenecek`;
+            cs.className = "connection-status status-offline text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
+            return;
+        }
+
         if (!isOnline) {
-            if (qCount > 0) {
-                cs.innerHTML = `🔴 Çevrimdışı | Cihaza Kaydedildi (${qCount} Senkron Bekliyor)`;
-                cs.className = "connection-status status-offline text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
-            } else {
-                cs.innerHTML = "🔴 Çevrimdışı | Cihaza Kaydedildi";
-                cs.className = "connection-status status-offline text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
-            }
-        } 
-        else {
-            if (qCount > 0) {
-                cs.innerHTML = `🔄 Buluta Senkronize Ediliyor (${qCount})...`;
-                cs.className = "connection-status status-syncing text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
-            } else {
-                cs.innerHTML = "✅ Tüm Değişiklikler Kaydedildi";
-                cs.className = "connection-status status-online text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
-            }
+            cs.textContent = qCount > 0 ? `🔴 Çevrimdışı | Cihaza Kaydedildi (${qCount} Bekliyor)` : "🔴 Çevrimdışı | Cihaza Kaydedildi";
+            cs.className = "connection-status status-offline text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
+        } else {
+            cs.textContent = qCount > 0 ? `🔄 Buluta Senkronize Ediliyor (${qCount})...` : "✅ Tüm Değişiklikler Kaydedildi";
+            cs.className = qCount > 0 ? "connection-status status-syncing text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm" : "connection-status status-online text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 shadow-sm";
         }
     }
 
@@ -406,63 +402,98 @@
         async function syncFirebaseSet(path, data) {
             activeSavingCount++;
             refreshStatusIndicator();
-            if (isOnline) {
-                try { 
-                     await set(ref(database, path), data); 
-                 } catch (e) { 
-                     await addToSyncQueue('set', path, data); 
-                 }
-            } else { 
-                 await addToSyncQueue('set', path, data); 
-             }
-            activeSavingCount--;
-            refreshStatusIndicator();
+            try {
+                if (isOnline) {
+                    await set(ref(database, path), data);
+                    syncHasError = false;
+                } else {
+                    await addToSyncQueue('set', path, data);
+                }
+            } catch (e) {
+                syncHasError = true;
+                await addToSyncQueue('set', path, data);
+            } finally {
+                activeSavingCount = Math.max(0, activeSavingCount - 1);
+                refreshStatusIndicator();
+            }
         }
+
         async function syncFirebaseUpdate(path, data) {
             activeSavingCount++;
             refreshStatusIndicator();
-            if (isOnline) {
-                try { 
-                     await update(ref(database, path), data); 
-                 } catch (e) { 
-                     await addToSyncQueue('update', path, data); 
-                 }
-            } else { 
-                 await addToSyncQueue('update', path, data); 
-             }
-            activeSavingCount--;
-            refreshStatusIndicator();
+            try {
+                if (isOnline) {
+                    await update(ref(database, path), data);
+                    syncHasError = false;
+                } else {
+                    await addToSyncQueue('update', path, data);
+                }
+            } catch (e) {
+                syncHasError = true;
+                await addToSyncQueue('update', path, data);
+            } finally {
+                activeSavingCount = Math.max(0, activeSavingCount - 1);
+                refreshStatusIndicator();
+            }
         }
+
         async function processSyncQueue() {
             if (!isOnline) return;
             try {
                 const db = await dbPromise;
-                const tx = db.transaction("syncQueue", "readwrite");
+                const tx = db.transaction("syncQueue", "readonly");
                 const store = tx.objectStore("syncQueue");
-                const req = store.getAll();
-                req.onsuccess = async () => {
-                    if (req.result.length === 0) {
-                        refreshStatusIndicator();
-                        return;
-                    }
+                const allItems = [];
+                
+                await new Promise((resolve) => {
+                    store.openCursor().onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor) { allItems.push(cursor.value); cursor.continue(); }
+                        else { resolve(); }
+                    };
+                });
+
+                if (allItems.length === 0) {
+                    syncHasError = false;
                     refreshStatusIndicator();
-                    for (let item of req.result) {
-                        try {
-                            if (item.type === 'set') await set(ref(database, item.path), item.data);
-                            else if (item.type === 'update') await update(ref(database, item.path), item.data);
-                            const delTx = db.transaction("syncQueue", "readwrite");
-                            delTx.objectStore("syncQueue").delete(item.id);
-                        } catch(e) {}
-                    }
-                    refreshStatusIndicator();
+                    return;
                 }
-            } catch(e) { console.error("Kuyruk işleme hatası", e); }
+
+                // STRES TESTİ GÜNCELLEMESİ: activeSavingCount yönetimi ağ isteklerine tam bağımlı hale getirildi.
+                for (const item of allItems) {
+                    if (!isOnline) { syncHasError = true; break; }
+                    activeSavingCount++;
+                    refreshStatusIndicator();
+                    try {
+                        if (item.type === 'set') await set(ref(database, item.path), item.data);
+                        else if (item.type === 'update') await update(ref(database, item.path), item.data);
+                        
+                        const delTx = db.transaction("syncQueue", "readwrite");
+                        await new Promise((res, rej) => {
+                            const req = delTx.objectStore("syncQueue").delete(item.id);
+                            req.onsuccess = () => res();
+                            req.onerror = () => rej(req.error);
+                        });
+                    } catch (err) {
+                        console.error("Senkronizasyon işlemi yarıda kaldı:", err);
+                        syncHasError = true;
+                        break; 
+                    } finally {
+                        activeSavingCount = Math.max(0, activeSavingCount - 1);
+                        refreshStatusIndicator();
+                    }
+                }
+            } catch(e) { 
+                console.error("Kuyruk döngü hatası", e); 
+                syncHasError = true;
+            } finally {
+                refreshStatusIndicator();
+            }
         }
-        window.addEventListener('online', () => { isOnline = true; processSyncQueue(); });
-        window.addEventListener('offline', () => { 
-             isOnline = false; 
-             refreshStatusIndicator();
-        });
+
+        window.addEventListener('online', () => { isOnline = true; syncHasError = false; processSyncQueue(); });
+        window.addEventListener('offline', () => { isOnline = false; refreshStatusIndicator(); });
+
         const populateTimerDropdowns = () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
@@ -474,7 +505,7 @@
             lessonSelect.innerHTML = "";
             for(let c=0; c<currentCols; c++) {
                 const el = document.getElementById(`th-subj-${c}-text`);
-                const lessonName = el ? el.innerText.trim() : (DEFAULT_YKS_LESSONS[c] ? DEFAULT_YKS_LESSONS[c].name : `Ders ${c+1}`);
+                const lessonName = el ? el.textContent.trim() : (DEFAULT_YKS_LESSONS[c] ? DEFAULT_YKS_LESSONS[c].name : `Ders ${c+1}`);
                 lessonSelect.appendChild(new Option(lessonName, c));
             }
             setTimeout(() => {
@@ -486,11 +517,12 @@
                 }
             }, 400);
         };
+
         const renderTableStructure = () => {
             let thHtml = `<th class="p-3 bg-indigo-600 dark:bg-indigo-900 font-semibold text-white">Tarih</th>`;
             for(let i=0; i<currentCols; i++) {
                 const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
-                thHtml += `<th class="p-3 font-semibold text-white"><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${defaultDef.name}</span> <span class="time-tag block text-[10px] mt-1 opacity-90 bg-white/20 px-1.5 py-0.5 rounded w-fit editable-text" data-edit-id="th-time-${i}">${defaultDef.time}</span></th>`;
+                thHtml += `<th class="p-3 font-semibold text-white"><span class="editable-text" data-edit-id="th-subj-${i}" id="th-subj-${i}-text">${escapeHTML(defaultDef.name)}</span> <span class="time-tag block text-[10px] mt-1 opacity-90 bg-white/20 px-1.5 py-0.5 rounded w-fit editable-text" data-edit-id="th-time-${i}">${escapeHTML(defaultDef.time)}</span></th>`;
             }
             thHtml += `<th class="p-3 font-semibold text-white">Günün Notu</th><th class="p-3 font-semibold text-white">Toplam Saat</th>`;
             headerRow.innerHTML = thHtml;
@@ -515,23 +547,38 @@
         renderTableStructure();
                 
         const debounce = (func, delay) => { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), delay); }; };
+        
         const getHoursFromText = (text) => {
             if (!text) return 0;
             const normalizedText = text.replace(/[–—]/g, '-').trim();
             const timeMatch = normalizedText.match(/(\d{1,2})[:\.](\d{2})\s*[-/]\s*(\d{1,2})[:\.](\d{2})/);
+            let parsedHours = 0;
             if (timeMatch) {
-                const startMins = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
-                const endMins = parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]);
-                let diff = endMins - startMins; if (diff < 0) diff += 24 * 60; 
-                return diff / 60;
+                const startH = parseInt(timeMatch[1], 10);
+                const startM = parseInt(timeMatch[2], 10);
+                const endH = parseInt(timeMatch[3], 10);
+                const endM = parseInt(timeMatch[4], 10);
+                
+                if (startH < 24 && startM < 60 && endH < 24 && endM < 60) {
+                    const startSecs = startH * 3600 + startM * 60;
+                    const endSecs = endH * 3600 + endM * 60;
+                    let diff = (endSecs - startSecs + 86400) % 86400;
+                    parsedHours = diff / 3600;
+                }
+            } else {
+                const numMatch = normalizedText.match(/^([\d\.,]+)$/) || normalizedText.match(/([\d\.,]+)\s*(?:saat|s|hr|hours)?$/i);
+                if (numMatch) parsedHours = parseFloat(numMatch[1].replace(',', '.')) || 0;
             }
-            const numMatch = normalizedText.match(/([\d\.,]+)/);
-            if (numMatch) return parseFloat(numMatch[0].replace(',', '.')) || 0;
-            return 0;
+            
+            // STRES TESTİ GÜNCELLEMESİ: Hatalı girişlerle grafiklerin patlaması kesin olarak engellenir
+            if (isNaN(parsedHours) || parsedHours < 0) return 0;
+            return Math.min(24, parsedHours); 
         };
+
         const toDateStr = (d) => { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        
         const updateDatesInTable = () => {
-            if (!currentStartDate || !currentStartDate.includes('-')) { currentStartDate = DEFAULT_START_DATE; }
+            if (!currentStartDate || !currentStartDate.includes('-') || isNaN(Date.parse(currentStartDate))) { currentStartDate = DEFAULT_START_DATE; }
             const parts = currentStartDate.split('-');
             const startDateObj = new Date(parts[0], parts[1] - 1, parts[2]);
             const dateCells = document.querySelectorAll(".date-cell");
@@ -539,7 +586,7 @@
                         
             dateCells.forEach((cell, index) => {
                 const rowDate = new Date(startDateObj); rowDate.setDate(rowDate.getDate() + index);
-                cell.innerText = `${rowDate.getDate()} ${months[rowDate.getMonth()]} ${days[rowDate.getDay()]}`;
+                cell.textContent = `${rowDate.getDate()} ${months[rowDate.getMonth()]} ${days[rowDate.getDay()]}`;
                 cell.dataset.fulldate = toDateStr(rowDate);
                                 
                 const tr = cell.closest('tr');
@@ -553,6 +600,7 @@
                 } else if (rowDate < todayZero) { tr.classList.add("past-day"); }
             });
         };
+
         const updateStats = () => {
             const rows = document.querySelectorAll("#table-body tr");
             let completedHours = 0, remainingHours = 0;
@@ -563,19 +611,26 @@
             const dailyHoursMap = {};
             const dailyLabels = []; 
             const dailyData = []; 
+            
+            const cachedHeaderHours = [];
+            for (let c = 0; c < currentCols; c++) {
+                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${c}"]`);
+                cachedHeaderHours.push(getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : ""));
+            }
+
             rows.forEach((row, rowIndex) => {
                 let rowTotalHours = 0;
                 let dateCell = row.querySelector('.date-cell');
                 let rowDateStr = dateCell ? dateCell.dataset.fulldate : null; 
                 dailyLabels.push(`G. ${rowIndex + 1}`);
+                
                 row.querySelectorAll(".task-checkbox").forEach((box, cIndex) => {
                     if (cIndex >= currentCols) return; 
-                    const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${cIndex}"]`);
-                    const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+                    const currentHeaderHrs = cachedHeaderHours[cIndex];
                     subjTotals[cIndex]++;
                                         
                     const taskData = cacheTasks[box.id];
-                    const badgeContainer = document.getElementById(`timer-badge-${rowIndex}-${cIndex}`);
+                    const badgeContainer = box.parentNode.querySelector(".cell-timer-container");
                     if (badgeContainer) {
                         badgeContainer.innerHTML = (taskData && taskData.hours > 0) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
                     }
@@ -587,9 +642,10 @@
                 });
                 dailyData.push(rowTotalHours);
                 if (rowDateStr) dailyHoursMap[rowDateStr] = rowTotalHours;
+                
                 const hourDisplay = document.getElementById(`hour-${rowIndex + 1}`);
                 if (hourDisplay) {
-                    hourDisplay.innerText = `${Number.isInteger(rowTotalHours) ? rowTotalHours : rowTotalHours.toFixed(1)} Saat`;
+                    hourDisplay.textContent = `${Number.isInteger(rowTotalHours) ? rowTotalHours : rowTotalHours.toFixed(1)} Saat`;
                     hourDisplay.classList.remove('target-met', 'target-missed');
                     if(rowTotalHours >= currentTarget) hourDisplay.classList.add('target-met');
                     else if(rowTotalHours > 0) hourDisplay.classList.add('target-missed');
@@ -598,12 +654,9 @@
 
             let currentStreak = 0;
             const safeTarget = currentTarget - 0.05;
-            
             let maxMetIndex = -1;
             for (let i = 0; i < dailyData.length; i++) {
-                if (dailyData[i] >= safeTarget) {
-                    maxMetIndex = i;
-                }
+                if (dailyData[i] >= safeTarget) maxMetIndex = i;
             }
 
             let todayIndex = -1;
@@ -613,15 +666,11 @@
 
             let startIndex = -1;
             if (maxMetIndex !== -1) {
-                if (maxMetIndex > todayIndex) {
-                    startIndex = maxMetIndex;
-                } else {
+                if (maxMetIndex > todayIndex) startIndex = maxMetIndex;
+                else {
                     if (todayIndex !== -1) {
-                        if (dailyData[todayIndex] >= safeTarget) {
-                            startIndex = todayIndex;
-                        } else if (todayIndex - 1 >= 0 && dailyData[todayIndex - 1] >= safeTarget) {
-                            startIndex = todayIndex - 1;
-                        }
+                        if (dailyData[todayIndex] >= safeTarget) startIndex = todayIndex;
+                        else if (todayIndex - 1 >= 0 && dailyData[todayIndex - 1] >= safeTarget) startIndex = todayIndex - 1;
                     } else {
                         startIndex = maxMetIndex;
                     }
@@ -630,28 +679,21 @@
 
             if (startIndex !== -1) {
                 for (let i = startIndex; i >= 0; i--) {
-                    if (dailyData[i] >= safeTarget) {
-                        currentStreak++;
-                    } else {
-                        break;
-                    }
+                    if (dailyData[i] >= safeTarget) currentStreak++;
+                    else break;
                 }
             }
 
             const streakEl = document.getElementById('streak-counter');
             if (streakEl) {
-                streakEl.innerHTML = `🔥 Seri: ${currentStreak}`;
-                if (currentStreak > 0) {
-                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 text-white shadow-md border-none streak-active";
-                } else {
-                    streakEl.className = "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-600 text-white border-none";
-                }
+                streakEl.textContent = `🔥 Seri: ${currentStreak}`;
+                streakEl.className = currentStreak > 0 ? "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 text-white shadow-md border-none streak-active" : "px-3 py-1 rounded-md text-xs font-semibold flex gap-1.5 items-center bg-slate-600 text-white border-none";
             }
 
             const subjNames = [];
             for(let i=0; i<currentCols; i++) {
                 const el = document.getElementById(`th-subj-${i}-text`);
-                subjNames.push(el ? el.innerText.split(' ')[0] : `Ders ${i+1}`);
+                subjNames.push(el ? el.textContent.split(' ')[0] : `Ders ${i+1}`);
             }
             let statsHtml = `<div class="stat-badge bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-md flex gap-1.5 items-center stat-hours border-transparent bg-teal-50 dark:bg-emerald-950/40" title="Çalışılan / Kalan Toplam Saat">⏱️ <span class="text-emerald-500">${completedHours.toFixed(1)}s</span> / <span class="text-emerald-500">${remainingHours.toFixed(1)}s</span></div>`;
             for(let i=0; i<currentCols; i++) {
@@ -666,14 +708,13 @@
                         
             Chart.defaults.color = textColor;
             Chart.defaults.font.family = "'Inter', sans-serif";
-            const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031'];
+            const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#0984e3', '#d63031', '#4bc0c0', '#ff9f40', '#9966ff', '#ff6384'];
             
             if (chartInstance) {
                 chartInstance.data.labels = subjNames;
                 chartInstance.data.datasets[0].data = subjTotalHoursArr;
                 chartInstance.data.datasets[0].backgroundColor = colors.slice(0, currentCols);
-                chartInstance.options.plugins.legend.labels.color = textColor;
-                chartInstance.update();
+                chartInstance.update('none');
             } else {
                 chartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
                     type: 'doughnut',
@@ -682,16 +723,14 @@
                 });
             }
 
+            const maxDailyHour = dailyData.length > 0 ? Math.max(...dailyData) : 0;
+            const computedYMax = Math.max(12, currentTarget + 2, Math.ceil(maxDailyHour) + 1);
+
             if (lineChartInstance) {
                 lineChartInstance.data.labels = dailyLabels;
                 lineChartInstance.data.datasets[0].data = dailyData;
-                lineChartInstance.data.datasets[0].backgroundColor = isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(108, 92, 231, 0.1)';
-                lineChartInstance.options.scales.x.grid.color = gridColor;
-                lineChartInstance.options.scales.y.grid.color = gridColor;
-                lineChartInstance.options.scales.x.ticks.color = textColor;
-                lineChartInstance.options.scales.y.ticks.color = textColor;
-                lineChartInstance.options.scales.y.max = Math.max(12, currentTarget + 2);
-                lineChartInstance.update();
+                lineChartInstance.options.scales.y.max = computedYMax;
+                lineChartInstance.update('none');
             } else {
                 lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
                     type: 'line',
@@ -706,7 +745,7 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                         scales: { 
                             x: { grid: { color: gridColor }, ticks: { color: textColor } }, 
-                            y: { min: 0, max: Math.max(12, currentTarget + 2), grid: { color: gridColor }, ticks: { color: textColor } } 
+                            y: { min: 0, max: computedYMax, grid: { color: gridColor }, ticks: { color: textColor } } 
                         } 
                     }
                 });
@@ -715,22 +754,50 @@
             const weeklyGrid = document.getElementById('weekly-summary-grid');
             weeklyGrid.innerHTML = "";
             subjNames.forEach((name, i) => {
-                weeklyGrid.innerHTML += `<div class="week-item bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm flex flex-col gap-1"><span class="w-title text-[10px] uppercase tracking-wider font-bold text-slate-400">${escapeHTML(name)}</span><span class="w-val text-lg font-black text-slate-800 dark:text-slate-100">${subjTotalHoursArr[i].toFixed(1)} <span class="text-xs font-semibold text-slate-400">Saat</span></span></div>`;
+                const item = document.createElement("div");
+                item.className = "week-item bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm flex flex-col gap-1";
+                
+                const titleSpan = document.createElement("span");
+                titleSpan.className = "w-title text-[10px] uppercase tracking-wider font-bold text-slate-400";
+                titleSpan.textContent = name;
+                
+                const valSpan = document.createElement("span");
+                valSpan.className = "w-val text-lg font-black text-slate-800 dark:text-slate-100";
+                valSpan.innerHTML = `${subjTotalHoursArr[i].toFixed(1)} <span class="text-xs font-semibold text-slate-400">Saat</span>`;
+                
+                item.appendChild(titleSpan);
+                item.appendChild(valSpan);
+                weeklyGrid.appendChild(item);
             });
+
             const weekSummaryGrid = document.getElementById('weekly-summary-grid-2');
             if (weekSummaryGrid) {
-                let weeklyHtml = "";
+                weekSummaryGrid.innerHTML = "";
                 let weekSum = 0; let currentWeek = 1;
                 for (let i = 0; i < dailyData.length; i++) {
                    weekSum += dailyData[i];
                    if ((i + 1) % 7 === 0 || i === dailyData.length - 1) {
-                       weeklyHtml += `<div class="week-item bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm flex flex-col gap-1"><span class="w-title text-[10px] uppercase tracking-wider font-bold text-slate-400">${currentWeek}. Hafta</span><span class="w-val text-lg font-black text-slate-800 dark:text-slate-100">${weekSum.toFixed(1)} <span class="text-xs font-semibold text-slate-400">Saat</span></span></div>`;
+                       const item = document.createElement("div");
+                       item.className = "week-item bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm flex flex-col gap-1";
+                       
+                       const titleSpan = document.createElement("span");
+                       titleSpan.className = "w-title text-[10px] uppercase tracking-wider font-bold text-slate-400";
+                       titleSpan.textContent = `${currentWeek}. Hafta`;
+                       
+                       const valSpan = document.createElement("span");
+                       valSpan.className = "w-val text-lg font-black text-slate-800 dark:text-slate-100";
+                       valSpan.innerHTML = `${weekSum.toFixed(1)} <span class="text-xs font-semibold text-slate-400">Saat</span>`;
+                       
+                       item.appendChild(titleSpan);
+                       item.appendChild(valSpan);
+                       weekSummaryGrid.appendChild(item);
+                       
                        currentWeek++; weekSum = 0;
                    }
                 }
-                weekSummaryGrid.innerHTML = weeklyHtml;
             }
         };
+
         const applyDataToUI = () => {
             updateDatesInTable();
             let globalCheckedCount = 0;
@@ -751,18 +818,23 @@
                 });
             });
             
-            document.querySelectorAll('.editable-text').forEach(el => {
-                const id = el.getAttribute('data-edit-id');
-                if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) { el.innerText = cacheCustomTexts[id]; }
-            });
+            // STRES TESTİ GÜNCELLEMESİ: Düzenleme modundayken uzak Firebase güncellemelerinin imleci (focus) bozması engellendi.
+            if (!isEditMode) {
+                document.querySelectorAll('.editable-text').forEach(el => {
+                    const id = el.getAttribute('data-edit-id');
+                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) { el.textContent = cacheCustomTexts[id]; }
+                });
+            }
 
             const percent = totalTasks === 0 ? 0 : Math.round((globalCheckedCount / totalTasks) * 100);
             progressFill.style.width = `${percent}%`;
-            progressText.innerText = `%${percent} Tamamlandı`;
+            progressText.textContent = `%${percent} Tamamlandı`;
             updateStats();
         };
+
         const debouncedApplyData = debounce(applyDataToUI, 150);
         applyDataToUI(); 
+
         tasksRef = ref(database, `${SHARED_PATH}tasks/`);
         notesRef = ref(database, `${SHARED_PATH}notes/`);
         customTextRef = ref(database, `${SHARED_PATH}customTexts/`);
@@ -778,26 +850,37 @@
                 refreshStatusIndicator();
             }
         });
+
         onValue(settingsRef, (snapshot) => {
             const s = snapshot.val() || {};
-            const newCols = s.colCount || 5; const newRows = s.rowCount || 17;
+            const newCols = Math.min(10, Math.max(1, s.colCount || 5)); 
+            const newRows = Math.min(100, Math.max(7, s.rowCount || 17));
             currentStartDate = s.startDate || DEFAULT_START_DATE; currentTarget = s.targetHours || 8;
             let needsRebuild = false;
             if(newCols !== currentCols) { currentCols = newCols; needsRebuild = true; }
             if(newRows !== currentRowCount) { currentRowCount = newRows; needsRebuild = true; }
-            if(needsRebuild) renderTableStructure();
-            saveToIDB('settings', s); debouncedApplyData();
+            if(needsRebuild) {
+                if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+                if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+                renderTableStructure();
+            }
+            saveToIDB('settings', { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount }); 
+            debouncedApplyData();
         });
+
         onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; saveToIDB('tasks', cacheTasks); debouncedApplyData(); });
         onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; saveToIDB('notes', cacheNotes); debouncedApplyData(); });
         onValue(customTextRef, (snapshot) => { 
             cacheCustomTexts = snapshot.val() || {}; saveToIDB('customTexts', cacheCustomTexts);
-            document.querySelectorAll('thead .editable-text').forEach(el => {
-                const id = el.getAttribute('data-edit-id');
-                if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.innerText = cacheCustomTexts[id];
-            });
+            if (!isEditMode) {
+                document.querySelectorAll('thead .editable-text').forEach(el => {
+                    const id = el.getAttribute('data-edit-id');
+                    if (cacheCustomTexts[id] !== undefined && document.activeElement !== el) el.textContent = cacheCustomTexts[id];
+                });
+            }
             populateTimerDropdowns(); debouncedApplyData(); 
         });
+
         tbody.addEventListener("change", (e) => {
             if (e.target.classList.contains("task-checkbox")) { 
                 const isChecked = e.target.checked;
@@ -810,7 +893,7 @@
                 if (isChecked) {
                     const colIndex = parseInt(taskId.split('-')[2]);
                     const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                    const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+                    const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
                     const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
                     taskData = { done: true, hours: safeHours, updatedAt: Date.now() };
                 } else {
@@ -824,12 +907,18 @@
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData); 
             }
         });
+
         tbody.addEventListener("click", (e) => {
             if (!isEditMode && e.target.classList.contains("task-text")) {
                 const checkbox = e.target.previousElementSibling;
                 if(checkbox && checkbox.type === "checkbox") checkbox.click();
             }
             if (e.target.classList.contains("btn-complete-day")) {
+                // STRES TESTİ GÜNCELLEMESİ: Double-click (Spam) koruma kilidi
+                if (e.target.hasAttribute("data-locked")) return;
+                e.target.setAttribute("data-locked", "true");
+                setTimeout(() => e.target.removeAttribute("data-locked"), 100);
+
                 const tr = e.target.closest('tr');
                 const rowTasks = tr.querySelectorAll(".task-checkbox");
                 let allChecked = Array.from(rowTasks).every(box => box.checked);
@@ -841,7 +930,7 @@
                     const existingData = cacheTasks[box.id];
                     if (newState) {
                         const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                        const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+                        const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
                         const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
                         const data = { done: true, hours: safeHours, updatedAt: now };
                         updates[box.id] = data; cacheTasks[box.id] = data;
@@ -858,40 +947,64 @@
                 });
                                 
                 saveToIDB('tasks', cacheTasks); updateStats();
-                syncFirebaseUpdate(`${SHARED_PATH}tasks/`, updates); 
+                if (Object.keys(updates).length > 0) {
+                    syncFirebaseUpdate(`${SHARED_PATH}tasks/`, updates); 
+                }
             }
         });
+
         const saveCustomText = debounce((id, text) => { 
             cacheCustomTexts[id] = text; saveToIDB('customTexts', cacheCustomTexts);
             syncFirebaseSet(`${SHARED_PATH}customTexts/${id}`, text); 
         }, 500);
+
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-text')) {
                 const id = e.target.getAttribute('data-edit-id');
-                saveCustomText(id, e.target.innerText);
+                saveCustomText(id, e.target.textContent);
                 if (id.startsWith('th-time-') || id.startsWith('th-subj-')) { updateStats(); populateTimerDropdowns(); }
             }
         });
+
         const saveNote = debounce((id, value) => { 
             cacheNotes[id] = value; saveToIDB('notes', cacheNotes);
             syncFirebaseSet(`${SHARED_PATH}notes/${id}`, value); 
         }, 800);
         tbody.addEventListener("input", (e) => { if (e.target.classList.contains("note-input")) saveNote(e.target.id, e.target.value); });
+        
         document.getElementById("start-date-picker").addEventListener("change", (e) => { 
-            currentStartDate = e.target.value; syncFirebaseSet(`${SHARED_PATH}settings/startDate`, e.target.value); 
+            const val = e.target.value;
+            if(!val || isNaN(Date.parse(val))) {
+                alert("❌ Geçersiz tarih girdiniz! Varsayılan ayar geri yükleniyor.");
+                e.target.value = currentStartDate;
+                return;
+            }
+            currentStartDate = val; 
+            updateDatesInTable();
+            syncFirebaseSet(`${SHARED_PATH}settings/startDate`, val); 
         });
         document.getElementById("daily-target").addEventListener("change", (e) => { 
-            currentTarget = Number(e.target.value); updateStats(); syncFirebaseSet(`${SHARED_PATH}settings/targetHours`, currentTarget); 
+            currentTarget = Math.min(24, Math.max(1, Number(e.target.value) || 8));
+            e.target.value = currentTarget;
+            updateStats(); 
+            syncFirebaseSet(`${SHARED_PATH}settings/targetHours`, currentTarget); 
         });
         document.getElementById("col-count").addEventListener("change", (e) => { 
             let val = Number(e.target.value); if(val < 1) val = 1; if(val > 10) val = 10;
-            currentCols = val; renderTableStructure(); applyDataToUI(); syncFirebaseSet(`${SHARED_PATH}settings/colCount`, val); 
+            currentCols = val; e.target.value = val;
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+            if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+            renderTableStructure(); applyDataToUI(); syncFirebaseSet(`${SHARED_PATH}settings/colCount`, val); 
         });
-        document.getElementById("add-row-btn").addEventListener("click", () => { syncFirebaseSet(`${SHARED_PATH}settings/rowCount`, currentRowCount + 1); });
+        document.getElementById("add-row-btn").addEventListener("click", () => { 
+            if (currentRowCount >= 100) return alert("Maksimum 100 gün ekleyebilirsiniz!");
+            syncFirebaseSet(`${SHARED_PATH}settings/rowCount`, currentRowCount + 1); 
+        });
         document.getElementById("del-row-btn").addEventListener("click", () => {
             if (currentRowCount <= 7) return alert("7 günün altına düşülemez!");
             if(confirm("Son satırı silmek istediğinize emin misiniz?")) syncFirebaseSet(`${SHARED_PATH}settings/rowCount`, currentRowCount - 1);
         });
+
         const editBtn = document.getElementById("edit-btn");
         editBtn.addEventListener("click", () => {
             isEditMode = !isEditMode;
@@ -903,9 +1016,30 @@
             } else {
                 document.body.classList.remove("edit-mode");
                 editBtn.innerHTML = "✏️ Düzenle"; editBtn.classList.remove("active");
-                editables.forEach(el => { el.removeAttribute("contenteditable"); el.innerText = el.innerText.trim(); }); 
+                
+                let bulkUpdates = {};
+                editables.forEach(el => { 
+                    el.removeAttribute("contenteditable"); 
+                    let text = el.textContent.trim();
+                    if (!text) {
+                        const id = el.getAttribute('data-edit-id');
+                        if (id.startsWith('task-text-')) text = "Ders/Konu Ekle";
+                        else if (id.startsWith('th-subj-')) text = "Yeni Ders";
+                        else if (id.startsWith('th-time-')) text = "00:00 - 00:00";
+                        else text = "-";
+                    }
+                    el.textContent = text;
+                    const id = el.getAttribute('data-edit-id');
+                    cacheCustomTexts[id] = text;
+                    bulkUpdates[id] = text;
+                }); 
+                saveToIDB('customTexts', cacheCustomTexts);
+                syncFirebaseUpdate(`${SHARED_PATH}customTexts/`, bulkUpdates);
+                updateStats();
+                populateTimerDropdowns();
             }
         });
+
         document.documentElement.setAttribute("data-theme", savedTheme);
         document.getElementById("theme-toggle").addEventListener("click", () => {
             const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
@@ -921,14 +1055,9 @@
                 tasks: cacheTasks,
                 notes: cacheNotes,
                 customTexts: cacheCustomTexts,
-                settings: {
-                    startDate: currentStartDate,
-                    targetHours: currentTarget,
-                    colCount: currentCols,
-                    rowCount: currentRowCount
-                }
+                settings: { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount }
             };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
             downloadAnchor.setAttribute("download", `yks_kamp_pro_yedek_${new Date().toISOString().slice(0,10)}.json`);
@@ -937,73 +1066,69 @@
             downloadAnchor.remove();
         });
         
-        document.getElementById("import-trigger-btn").addEventListener("click", () => {
-            document.getElementById("import-file").click();
-        });
+        document.getElementById("import-trigger-btn").addEventListener("click", () => { document.getElementById("import-file").click(); });
         
         document.getElementById("import-file").addEventListener("change", (e) => {
-            const file = e.target.files[file.length ? 0 : 0];
+            const file = e.target.files[0];
             if (!file) return;
+            if (file.size > 15 * 1024 * 1024) return alert("Hata: Yüklenecek dosya boyutu 15MB'dan büyük olamaz!");
+            
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
                     const parsed = JSON.parse(event.target.result);
+                    if (!parsed || typeof parsed !== 'object') throw new Error("Dosya içeriği geçerli bir JSON objesi değil.");
+                    
                     if (confirm("Bu dosyayı yüklerseniz mevcut tüm verilerinizin üzerine yazılacaktır. Onaylıyor musunuz?")) {
                                                 
                         if (parsed.study_schedule && Array.isArray(parsed.study_schedule)) {
-                            cacheTasks = {};
-                            cacheNotes = {};
-                            cacheCustomTexts = {};
+                            let calculatedRows = Math.min(100, Math.max(7, parsed.study_schedule.length));
+                            cacheTasks = {}; cacheNotes = {}; cacheCustomTexts = {};
                                                         
-                            cacheCustomTexts["th-subj-0"] = "Rutinler";
-                            cacheCustomTexts["th-subj-1"] = "Matematik";
-                            cacheCustomTexts["th-subj-2"] = "Kimya";
-                            cacheCustomTexts["th-subj-3"] = "Biyoloji";
-                            cacheCustomTexts["th-subj-4"] = "Ders 5";
-                                                        
-                            cacheCustomTexts["th-time-0"] = "09:30 - 11:30";
-                            cacheCustomTexts["th-time-1"] = "12:30 - 14:00";
-                            cacheCustomTexts["th-time-2"] = "14:15 - 15:45";
-                            cacheCustomTexts["th-time-3"] = "16:30 - 18:00";
-                            cacheCustomTexts["th-time-4"] = "18:15 - 19:15";
+                            for (let i = 0; i < 10; i++) {
+                                const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
+                                cacheCustomTexts[`th-subj-${i}`] = defaultDef.name;
+                                cacheCustomTexts[`th-time-${i}`] = defaultDef.time;
+                            }
+                            
                             parsed.study_schedule.forEach((dayData, r) => {
-                                if (Array.isArray(dayData.routine)) {
-                                    cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
-                                } else {
-                                    cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
-                                }
+                                if (r >= calculatedRows) return;
+                                if (Array.isArray(dayData.routine)) cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
+                                else cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
+                                
                                 cacheCustomTexts[`task-text-${r}-1`] = dayData.math || "-";
                                 cacheCustomTexts[`task-text-${r}-2`] = dayData.chemistry || "-";
                                 cacheCustomTexts[`task-text-${r}-3`] = dayData.biology || "-";
-                                cacheCustomTexts[`task-text-${r}-4`] = "-";
+                                
+                                for(let col=4; col<10; col++) {
+                                    if(dayData[`column_${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = dayData[`column_${col}`];
+                                    else if(!cacheCustomTexts[`task-text-${r}-${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = "-";
+                                }
                             });
-                            currentStartDate = parsed.study_schedule[0]?.date || "2026-05-26";
-                            currentTarget = 8;
-                            currentCols = 5;
-                            currentRowCount = parsed.study_schedule.length;
+                            currentStartDate = (parsed.study_schedule[0] && parsed.study_schedule[0].date && !isNaN(Date.parse(parsed.study_schedule[0].date))) ? parsed.study_schedule[0].date : DEFAULT_START_DATE;
+                            currentTarget = 8; currentCols = 5; currentRowCount = calculatedRows;
                                                     
                         } else {
-                            cacheTasks = parsed.tasks || {};
-                            cacheNotes = parsed.notes || {};
-                            cacheCustomTexts = parsed.customTexts || {};
-                                                        
+                            // STRES TESTİ GÜNCELLEMESİ: Bozuk import şemalarına karşı mutlak nesne (Object) zorlaması
+                            const isObject = (val) => val !== null && typeof val === 'object' && !Array.isArray(val);
+                            cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
+                            cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
+                            cacheCustomTexts = isObject(parsed.customTexts) ? parsed.customTexts : {};
+                            
                             const s = parsed.settings || {};
-                            currentStartDate = s.startDate || DEFAULT_START_DATE;
-                            currentTarget = s.targetHours || 8;
-                            currentCols = s.colCount || 5;
-                            currentRowCount = s.rowCount || 17;
+                            currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5)); 
+                            currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
+                            currentStartDate = (s.startDate && !isNaN(Date.parse(s.startDate))) ? s.startDate : DEFAULT_START_DATE;
+                            currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
                         }
-                        const settingsObj = {
-                            startDate: currentStartDate,
-                            targetHours: currentTarget,
-                            colCount: currentCols,
-                            rowCount: currentRowCount
-                        };
+                        const settingsObj = { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount };
+                        
+                        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+                        if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+
                         await Promise.all([
-                            saveToIDB('tasks', cacheTasks),
-                            saveToIDB('notes', cacheNotes),
-                            saveToIDB('customTexts', cacheCustomTexts),
-                            saveToIDB('settings', settingsObj)
+                            saveToIDB('tasks', cacheTasks), saveToIDB('notes', cacheNotes),
+                            saveToIDB('customTexts', cacheCustomTexts), saveToIDB('settings', settingsObj)
                         ]);
                         await Promise.all([
                             syncFirebaseSet(`${SHARED_PATH}tasks/`, Object.keys(cacheTasks).length > 0 ? cacheTasks : null),
@@ -1011,13 +1136,11 @@
                             syncFirebaseSet(`${SHARED_PATH}customTexts/`, Object.keys(cacheCustomTexts).length > 0 ? cacheCustomTexts : null),
                             syncFirebaseSet(`${SHARED_PATH}settings/`, settingsObj)
                         ]);
-                        renderTableStructure();
-                        applyDataToUI();
+                        renderTableStructure(); applyDataToUI();
                         alert("🚀 Program verileri başarıyla çözümlendi ve tabloya aktarıldı!");
                     }
                 } catch (err) {
-                    alert("❌ Hata: Geçersiz dosya veya JSON formatı!");
-                    console.error(err);
+                    alert("❌ Hata Ayrıştırma Raporu:\n" + err.message);
                 }
             };
             reader.readAsText(file);
@@ -1026,86 +1149,62 @@
         
         document.getElementById("reset-btn").addEventListener("click", async () => {
             if (confirm("⚠️ UYARI: Tüm tablo içeriğini, girilen ders isimlerini, süreleri ve günlük notları kalıcı olarak temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz!")) {
-                cacheTasks = {};
-                cacheNotes = {};
-                cacheCustomTexts = {};
+                cacheTasks = {}; cacheNotes = {}; cacheCustomTexts = {};
+                const defaultSettings = { startDate: DEFAULT_START_DATE, targetHours: 8, colCount: 5, rowCount: 17 };
                                 
-                const defaultSettings = {
-                    startDate: DEFAULT_START_DATE,
-                    targetHours: 8,
-                    colCount: 5,
-                    rowCount: 17
-                };
-                                
-                currentStartDate = defaultSettings.startDate;
-                currentTarget = defaultSettings.targetHours;
-                currentCols = defaultSettings.colCount;
-                currentRowCount = defaultSettings.rowCount;
+                currentStartDate = defaultSettings.startDate; currentTarget = defaultSettings.targetHours;
+                currentCols = defaultSettings.colCount; currentRowCount = defaultSettings.rowCount;
+                
+                if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+                if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+
                 await Promise.all([
-                    saveToIDB('tasks', cacheTasks),
-                    saveToIDB('notes', cacheNotes),
-                    saveToIDB('customTexts', cacheCustomTexts),
-                    saveToIDB('settings', defaultSettings)
+                    saveToIDB('tasks', cacheTasks), saveToIDB('notes', cacheNotes),
+                    saveToIDB('customTexts', cacheCustomTexts), saveToIDB('settings', defaultSettings)
                 ]);
                 await Promise.all([
-                    syncFirebaseSet(`${SHARED_PATH}tasks/`, null),
-                    syncFirebaseSet(`${SHARED_PATH}notes/`, null),
-                    syncFirebaseSet(`${SHARED_PATH}customTexts/`, null),
-                    syncFirebaseSet(`${SHARED_PATH}settings/`, defaultSettings)
+                    syncFirebaseSet(`${SHARED_PATH}tasks/`, null), syncFirebaseSet(`${SHARED_PATH}notes/`, null),
+                    syncFirebaseSet(`${SHARED_PATH}customTexts/`, null), syncFirebaseSet(`${SHARED_PATH}settings/`, defaultSettings)
                 ]);
-                renderTableStructure();
-                applyDataToUI();
+                renderTableStructure(); applyDataToUI();
                 alert("🗑️ Tablo başarıyla ilk ayarlarına sıfırlandı!");
             }
         });
 
         async function triggerNotification(title, body) {
-            if (!("Notification" in window)) {
-                alert(`🔔 ${title}\n\n${body}`);
-                return;
-            }
-            const options = { 
-                body: body, 
-                icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
-                badge: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png",
-                requireInteraction: true 
-            };
+            if (!("Notification" in window)) { alert(`🔔 ${title}\n\n${body}`); return; }
+            const options = { body: body, icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", badge: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", requireInteraction: true };
             if (Notification.permission === "granted") {
                 if ('serviceWorker' in navigator) {
                     try {
                         const reg = await navigator.serviceWorker.getRegistration();
-                        if (reg && 'showNotification' in reg) {
-                            await reg.showNotification(title, options);
-                            return;
-                        }
+                        if (reg && 'showNotification' in reg) { await reg.showNotification(title, options); return; }
                     } catch (e) { console.warn("SW bildirim hatası, standarda dönülüyor:", e); }
                 }
                 try { new Notification(title, options); } catch (err) { alert(`🔔 ${title}\n\n${body}`); }
             } else if (Notification.permission !== "denied") {
                 const permission = await Notification.requestPermission();
                 if (permission === "granted") { triggerNotification(title, body); } else { alert(`🔔 ${title}\n\n${body}`); }
-            } else {
-                alert(`🔔 ${title}\n\n${body}`);
-            }
+            } else { alert(`🔔 ${title}\n\n${body}`); }
         }
 
         async function sendTodayNotification() {
             const todayRow = document.querySelector('.today-highlight');
             const motivasyonSozleri = [
-                "Bugün, gelecekteki senin sana teşekkür edeceği bir gün olsun! 🚀",
+                "Bugün, gelecekteki senin sana teşekkür edeceği bir dayanak noktası olsun! 🚀",
                 "Başarı, her gün tekrarlanan küçük çabaların toplamıdır. 💪",
                 "Hayallerine ulaşmak için bugün harika bir fırsat! Devam et! 💻",
                 "Zorluklar, sıradan insanları sıra dışı bir kadere hazırlar. 🌟"
             ];
             const rastgeleSoz = motivasyonSozleri[Math.floor(Math.random() * motivasyonSozleri.length)];
-            if (!todayRow) return await triggerNotification("📌 YKS Kamp Takip", `Bugün için bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
+            if (!todayRow) return await triggerNotification("📌 YKS Kamp Takip", `Bugün için aktif bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
             let tasksList = [];
             const tasks = todayRow.querySelectorAll('.task-text');
             const headers = document.querySelectorAll('thead th .editable-text[id^="th-subj"]');
                         
             tasks.forEach((taskSpan, index) => {
-                const taskText = taskSpan.innerText.trim();
-                const subjText = headers[index] ? headers[index].innerText.trim() : "";
+                const taskText = taskSpan.textContent.trim();
+                const subjText = headers[index] ? headers[index].textContent.trim() : "";
                 if (taskText !== "Ders/Konu Ekle" && taskText !== "-") {
                     const isDone = taskSpan.previousElementSibling && taskSpan.previousElementSibling.checked;
                     tasksList.push(`${isDone ? '✅' : '⏳'} ${subjText}: ${taskText}`);
@@ -1116,36 +1215,26 @@
 
         function getFirstLessonTime() {
             const firstTimeEl = document.querySelector('[data-edit-id="th-time-0"]');
-            const timeStr = firstTimeEl ? firstTimeEl.innerText.trim() : "09:30 - 11:30";
+            const timeStr = firstTimeEl ? firstTimeEl.textContent.trim() : "09:30 - 11:30";
             const startPart = timeStr.split('-')[0].trim();
             const match = startPart.match(/(\d{1,2})[:\.](\d{2})/);
-            if (match) {
-                return { hours: parseInt(match[1]), minutes: parseInt(match[2]) };
-            }
-            return { hours: 9, minutes: 30 };
+            return match ? { hours: parseInt(match[1], 10), minutes: parseInt(match[2], 10) } : { hours: 9, minutes: 30 };
         }
 
         async function checkAutomatedNotifications() {
-            const now = new Date();
-            const todayStr = now.toDateString();
-            
+            const now = new Date(); const todayStr = now.toDateString();
             let storedLastNotify = localStorage.getItem("lastAutoNotifiedDate") || "";
             if (storedLastNotify === todayStr) return;
             
             const firstLessonTime = getFirstLessonTime();
             const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), firstLessonTime.hours, firstLessonTime.minutes, 0, 0);
-            
             targetTime.setMinutes(targetTime.getMinutes() - 30);
             
             if (now >= targetTime && (now.getTime() - targetTime.getTime() < 30 * 60 * 1000)) {
                 localStorage.setItem("lastAutoNotifiedDate", todayStr);
                 const firstSubjEl = document.getElementById("th-subj-0-text");
-                const firstSubjName = firstSubjEl ? firstSubjEl.innerText.trim() : "İlk Ders";
-                
-                await triggerNotification(
-                    "📚 Ders Başlıyor!", 
-                    `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak veya başladı! Hazırlıklarını tamamla. 🚀`
-                );
+                const firstSubjName = firstSubjEl ? firstSubjEl.textContent.trim() : "İlk Ders";
+                await triggerNotification("📚 Ders Başlıyor!", `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak veya başladı! 🚀`);
             }
         }
         setInterval(checkAutomatedNotifications, 15000);
@@ -1159,8 +1248,8 @@
         function updateYksCountdown() {
             const distance = new Date("2026-06-20T10:15:00").getTime() - new Date().getTime();
             const el = document.getElementById("yks-countdown");
-            if (distance < 0) { el.innerHTML = "🎯 YKS Zamanı!"; return; }
-            el.innerHTML = `⏳ YKS: ${Math.floor(distance / (1000 * 60 * 60 * 24))} Gün`;
+            if (distance < 0) { el.textContent = "🎯 YKS Zamanı!"; return; }
+            el.textContent = `⏳ YKS: ${Math.floor(distance / (1000 * 60 * 60 * 24))} Gün`;
         }
         updateYksCountdown(); setInterval(updateYksCountdown, 86400000);
         
@@ -1168,6 +1257,13 @@
         let breakSeconds = parseInt(localStorage.getItem("breakSeconds")) || 0;
         let timerState = localStorage.getItem("timerState") || 'stopped'; 
         let mainInterval = null;
+        
+        const saveTimerStateToStorage = () => {
+            localStorage.setItem("timerSeconds", timerSeconds);
+            localStorage.setItem("breakSeconds", breakSeconds);
+            localStorage.setItem("timerState", timerState);
+        };
+
         const updateTimerDisplay = () => {
             const format = (sec) => {
                 const h = String(Math.floor(sec / 3600)).padStart(2, '0');
@@ -1175,8 +1271,8 @@
                 const s = String(sec % 60).padStart(2, '0');
                 return `${h}:${m}:${s}`;
             };
-            document.getElementById("timer-display").innerText = format(timerSeconds);
-            document.getElementById("break-display").innerText = format(breakSeconds);
+            document.getElementById("timer-display").textContent = format(timerSeconds);
+            document.getElementById("break-display").textContent = format(breakSeconds);
         };
         
         const syncTimeWithTimestamp = () => {
@@ -1187,157 +1283,113 @@
             
             if (elapsedMs >= 1000) {
                 const addedSec = Math.floor(elapsedMs / 1000);
-                if (timerState === 'running') {
-                    timerSeconds += addedSec;
-                    localStorage.setItem("timerSeconds", timerSeconds);
-                } else if (timerState === 'break') {
-                    breakSeconds += addedSec;
-                    localStorage.setItem("breakSeconds", breakSeconds);
-                }
+                if (timerState === 'running') timerSeconds += addedSec;
+                else if (timerState === 'break') breakSeconds += addedSec;
                 localStorage.setItem("timerLastActiveTimestamp", lastActiveTimestamp + (addedSec * 1000));
+                saveTimerStateToStorage();
             }
         };
         
-        const tick = () => {
-            syncTimeWithTimestamp();
-            updateTimerDisplay();
-        };
+        const tick = () => { syncTimeWithTimestamp(); updateTimerDisplay(); };
         const applyUIState = () => {
             const startBtn = document.getElementById("timer-start-btn");
             const breakBtn = document.getElementById("timer-break-btn");
                         
             if (timerState === 'running') {
                 startBtn.innerHTML = "⏸️ Durdur"; startBtn.style.background = "var(--danger-color)";
-                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
-                breakBtn.style.color = "#000";
+                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)"; breakBtn.style.color = "#000";
             } else if (timerState === 'break') {
                 startBtn.innerHTML = "▶️ Devam Et"; startBtn.style.background = "var(--accent)";
-                breakBtn.innerHTML = "🛑 Molayı Bitir"; breakBtn.style.background = "var(--danger-color)";
-                breakBtn.style.color = "#fff";
+                breakBtn.innerHTML = "🛑 Molayı Bitir"; breakBtn.style.background = "var(--danger-color)"; breakBtn.style.color = "#fff";
             } else {
                 startBtn.innerHTML = "▶️ Başlat"; startBtn.style.background = "var(--accent)";
-                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)";
-                breakBtn.style.color = "#000";
+                breakBtn.innerHTML = "☕ Mola"; breakBtn.style.background = "var(--highlight)"; breakBtn.style.color = "#000";
             }
         };
-        if (timerState !== 'stopped') {
-            syncTimeWithTimestamp();
-            mainInterval = setInterval(tick, 1000);
-        }
-        updateTimerDisplay(); 
-        applyUIState();
+        if (timerState !== 'stopped') { syncTimeWithTimestamp(); mainInterval = setInterval(tick, 1000); }
+        updateTimerDisplay(); applyUIState();
+        
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
-                if (timerState !== 'stopped') {
-                    syncTimeWithTimestamp();
-                    updateTimerDisplay();
-                }
+                if (timerState !== 'stopped') { syncTimeWithTimestamp(); updateTimerDisplay(); }
                 checkAutomatedNotifications();
             }
         });
+
         document.getElementById("timer-start-btn").addEventListener("click", () => {
             syncTimeWithTimestamp();
             if (timerState === 'stopped' || timerState === 'break') {
-                timerState = 'running';
-                localStorage.setItem("timerLastActiveTimestamp", Date.now());
+                timerState = 'running'; localStorage.setItem("timerLastActiveTimestamp", Date.now());
                 if (!mainInterval) mainInterval = setInterval(tick, 1000);
-            } else {
-                timerState = 'stopped';
-                clearInterval(mainInterval); 
-                mainInterval = null;
-            }
-            localStorage.setItem("timerState", timerState);
-            applyUIState();
-            updateTimerDisplay();
+            } else { timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null; }
+            saveTimerStateToStorage(); applyUIState(); updateTimerDisplay();
         });
+
         document.getElementById("timer-break-btn").addEventListener("click", () => {
             syncTimeWithTimestamp();
             if (timerState === 'running' || timerState === 'stopped') {
-                timerState = 'break';
-                localStorage.setItem("timerLastActiveTimestamp", Date.now());
+                timerState = 'break'; localStorage.setItem("timerLastActiveTimestamp", Date.now());
                 if (!mainInterval) mainInterval = setInterval(tick, 1000);
-            } else if (timerState === 'break') {
-                timerState = 'stopped'; 
-                clearInterval(mainInterval); 
-                mainInterval = null;
-            }
-            localStorage.setItem("timerState", timerState);
-            applyUIState();
-            updateTimerDisplay();
+            } else if (timerState === 'break') { timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null; }
+            saveTimerStateToStorage(); applyUIState(); updateTimerDisplay();
         });
+
         document.getElementById("timer-reset-btn").addEventListener("click", () => {
             if (confirm("Tüm sayaçları sıfırlamak istediğine emin misin?")) {
-                timerState = 'stopped'; 
-                clearInterval(mainInterval); 
-                mainInterval = null;
-                timerSeconds = 0; 
-                breakSeconds = 0;
-                localStorage.setItem("timerState", 'stopped');
-                localStorage.setItem("timerSeconds", 0); 
-                localStorage.setItem("breakSeconds", 0);
-                localStorage.removeItem("timerLastActiveTimestamp");
-                updateTimerDisplay(); 
-                applyUIState();
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerSeconds = 0; breakSeconds = 0; saveTimerStateToStorage();
+                localStorage.removeItem("timerLastActiveTimestamp"); updateTimerDisplay(); applyUIState();
             }
         });
+
         document.getElementById("timer-save-btn").addEventListener("click", () => {
             const daySelect = document.getElementById("timer-day-select");
             const lessonSelect = document.getElementById("timer-lesson-select");
-                        
             syncTimeWithTimestamp();
                         
             const addedHours = timerSeconds / 3600;
             if (timerSeconds < 1) return alert("Aktarmak için önce süreyi başlatmalısın!");
-            const lessonName = document.getElementById(`th-subj-${lessonSelect.value}-text`)?.innerText.trim() || `Ders`;
-            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${parseInt(daySelect.value) + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
-                const taskId = `task-${daySelect.value}-${lessonSelect.value}`;
-                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${lessonSelect.value}"]`);
-                const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.innerText : "");
+
+            // STRES TESTİ GÜNCELLEMESİ: Küçültülmüş tablolarda hayalet hücre (Out of Bounds) veri kaybı engeli
+            const targetDay = parseInt(daySelect.value);
+            const targetLesson = parseInt(lessonSelect.value);
+            if (isNaN(targetDay) || targetDay >= currentRowCount || isNaN(targetLesson) || targetLesson >= currentCols) {
+                alert("❌ Hata: Seçili gün veya ders mevcut tablo sınırlarının dışında! Lütfen seçimi güncelleyin.");
+                return;
+            }
+
+            const lessonName = document.getElementById(`th-subj-${targetLesson}-text`)?.textContent.trim() || `Ders`;
+            if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${targetDay + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
+                const taskId = `task-${targetDay}-${targetLesson}`;
+                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${targetLesson}"]`);
+                const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
                                 
                 const currentData = cacheTasks[taskId] || { done: false, hours: 0 };
                 let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
                                 
                 const taskData = { done: true, hours: baselineHours + addedHours, updatedAt: Date.now() };
-                cacheTasks[taskId] = taskData; 
-                saveToIDB('tasks', cacheTasks); 
-                applyDataToUI(); 
+                cacheTasks[taskId] = taskData; saveToIDB('tasks', cacheTasks); applyDataToUI(); 
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
 
-                let currentLessonIdx = parseInt(lessonSelect.value);
-                let nextLessonIdx = currentLessonIdx;
+                let nextLessonIdx = targetLesson;
                 for (let i = 1; i <= currentCols; i++) {
-                    let checkIdx = (currentLessonIdx + i) % currentCols;
+                    let checkIdx = (targetLesson + i) % currentCols;
                     const checkHeaderTime = document.querySelector(`th span[data-edit-id="th-time-${checkIdx}"]`);
-                    if (checkHeaderTime && getHoursFromText(checkHeaderTime.innerText) > 0) {
-                        nextLessonIdx = checkIdx;
-                        break;
-                    }
+                    if (checkHeaderTime && getHoursFromText(checkHeaderTime.textContent) > 0) { nextLessonIdx = checkIdx; break; }
                 }
                 lessonSelect.value = nextLessonIdx;
 
-                timerState = 'stopped'; 
-                clearInterval(mainInterval); 
-                mainInterval = null;
-                timerSeconds = 0; 
-                breakSeconds = 0;
-                localStorage.setItem("timerState", 'stopped');
-                localStorage.setItem("timerSeconds", 0); 
-                localStorage.setItem("breakSeconds", 0);
-                localStorage.removeItem("timerLastActiveTimestamp");
-                updateTimerDisplay(); 
-                applyUIState();
+                timerState = 'stopped'; clearInterval(mainInterval); mainInterval = null;
+                timerSeconds = 0; breakSeconds = 0; saveTimerStateToStorage();
+                localStorage.removeItem("timerLastActiveTimestamp"); updateTimerDisplay(); applyUIState();
             }
         });
+
         document.getElementById('minimize-btn').addEventListener('click', (e) => {
             const widget = document.getElementById('timer-widget');
             widget.classList.toggle('minimized');
-            if (widget.classList.contains('minimized')) {
-                widget.style.transform = 'translateY(calc(100% - 32px))';
-                e.target.innerText = '▲';
-            } else {
-                widget.style.transform = 'none';
-                e.target.innerText = '▼';
-            }
+            if (widget.classList.contains('minimized')) { widget.style.transform = 'translateY(calc(100% - 32px))'; e.target.textContent = '▲'; } 
+            else { widget.style.transform = 'none'; e.target.textContent = '▼'; }
         });
         
         checkAutomatedNotifications();
