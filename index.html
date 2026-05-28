@@ -167,7 +167,7 @@
                     <button class="flex items-center gap-3 px-4 py-2.5 w-full text-left text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" id="reset-btn"><span class="w-5 text-center">🗑️</span> <span>Tabloyu Sıfırla</span></button>
                 </div>
             </div>
-            <input type="file" id="import-file" class="hidden" accept=".json">
+            <input type="file" id="import-file" style="position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden;" accept=".json">
         </div>
     </div>
 </div>
@@ -199,9 +199,12 @@
         </table>
     </div>
     
-    <div class="flex gap-3 w-full mt-4">
-        <button class="flex-1 justify-center px-4 py-3 rounded-xl font-bold text-sm bg-emerald-500 text-white flex items-center gap-2 shadow active:scale-[0.98] hover:bg-emerald-600 transition-all" id="add-row-btn">➕ Yeni Gün Ekle</button>
-        <button class="flex-1 justify-center px-4 py-3 rounded-xl font-bold text-sm bg-red-500 text-white flex items-center gap-2 shadow active:scale-[0.98] hover:bg-red-600 transition-all" id="del-row-btn">➖ Son Günü Sil</button>
+    <div class="w-full flex flex-col gap-2 mt-4">
+        <div class="flex gap-3 w-full">
+            <button class="flex-1 justify-center px-4 py-3 rounded-xl font-bold text-sm bg-emerald-500 text-white flex items-center gap-2 shadow active:scale-[0.98] hover:bg-emerald-600 transition-all" id="add-row-btn">➕ Yeni Gün Ekle</button>
+            <button class="flex-1 justify-center px-4 py-3 rounded-xl font-bold text-sm bg-red-500 text-white flex items-center gap-2 shadow active:scale-[0.98] hover:bg-red-600 transition-all" id="del-row-btn">➖ Son Günü Sil</button>
+        </div>
+        <button class="w-full justify-center px-4 py-3.5 rounded-xl font-black text-sm bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-2 shadow-lg active:scale-[0.98] transition-all opacity-50 cursor-not-allowed" id="restore-prev-btn" disabled>↩️ Önceki Programı Geri Getir (Geri Al)</button>
     </div>
 
     <div class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -296,8 +299,8 @@
     let isOnline = navigator.onLine;
     let activeSavingCount = 0; 
     let syncHasError = false;
+    let isImporting = false; 
 
-    // XSS Korumalı Güvenli Node Atama Fonksiyonları
     function escapeHTML(str) {
         if (!str) return "";
         return String(str)
@@ -543,6 +546,7 @@
             document.getElementById("daily-target").value = currentTarget;
             document.getElementById("col-count").value = currentCols;
             populateTimerDropdowns();
+            checkBackupStatus();
         };
         renderTableStructure();
                 
@@ -702,9 +706,6 @@
             statsPanel.innerHTML = statsHtml;
                         
             const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-            
-            // KOYU TEMA GÖRÜNÜRLÜK GÜNCELLEMESİ: bcd7ca59-5553-4950-833b-ab6372220ad2 hatasını gidermek için 
-            // eksen çizgileri belirginleştirildi ve yazı rengi net, yüksek kontrastlı neon fildişi beyazına (#f1f5f9) çekildi.
             const gridColor = isDark ? "rgba(255, 255, 255, 0.12)" : "#dfe6e9";
             const textColor = isDark ? "#f1f5f9" : "#2d3436";
                         
@@ -860,6 +861,7 @@
         });
 
         onValue(settingsRef, (snapshot) => {
+            if (isImporting) return; 
             const s = snapshot.val() || {};
             const newCols = Math.min(10, Math.max(1, s.colCount || 5)); 
             const newRows = Math.min(100, Math.max(7, s.rowCount || 17));
@@ -876,9 +878,10 @@
             debouncedApplyData();
         });
 
-        onValue(tasksRef, (snapshot) => { cacheTasks = snapshot.val() || {}; saveToIDB('tasks', cacheTasks); debouncedApplyData(); });
-        onValue(notesRef, (snapshot) => { cacheNotes = snapshot.val() || {}; saveToIDB('notes', cacheNotes); debouncedApplyData(); });
+        onValue(tasksRef, (snapshot) => { if (!isImporting) { cacheTasks = snapshot.val() || {}; saveToIDB('tasks', cacheTasks); debouncedApplyData(); } });
+        onValue(notesRef, (snapshot) => { if (!isImporting) { cacheNotes = snapshot.val() || {}; saveToIDB('notes', cacheNotes); debouncedApplyData(); } });
         onValue(customTextRef, (snapshot) => { 
+            if (isImporting) return;
             cacheCustomTexts = snapshot.val() || {}; saveToIDB('customTexts', cacheCustomTexts);
             if (!isEditMode) {
                 document.querySelectorAll('thead .editable-text').forEach(el => {
@@ -1075,6 +1078,32 @@
         
         document.getElementById("import-trigger-btn").addEventListener("click", () => { document.getElementById("import-file").click(); });
         
+        async function saveBackupSnapshot() {
+            const snapshot = {
+                tasks: JSON.parse(JSON.stringify(cacheTasks)),
+                notes: JSON.parse(JSON.stringify(cacheNotes)),
+                customTexts: JSON.parse(JSON.stringify(cacheCustomTexts)),
+                settings: { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount }
+            };
+            localStorage.setItem("yks_kamp_pro_undo_backup", JSON.stringify(snapshot));
+            await saveToIDB("undoBackup", snapshot);
+            checkBackupStatus();
+        }
+
+        async function checkBackupStatus() {
+            const restoreBtn = document.getElementById("restore-prev-btn");
+            if (!restoreBtn) return;
+            const hasLocal = localStorage.getItem("yks_kamp_pro_undo_backup");
+            const hasIdb = await getFromIDB("undoBackup");
+            if (hasLocal || hasIdb) {
+                restoreBtn.removeAttribute("disabled");
+                restoreBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            } else {
+                restoreBtn.setAttribute("disabled", "true");
+                restoreBtn.classList.add("opacity-50", "cursor-not-allowed");
+            }
+        }
+
         document.getElementById("import-file").addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -1087,46 +1116,20 @@
                     if (!parsed || typeof parsed !== 'object') throw new Error("Dosya içeriği geçerli bir JSON objesi değil.");
                     
                     if (confirm("Bu dosyayı yüklerseniz mevcut tüm verilerinizin üzerine yazılacaktır. Onaylıyor musunuz?")) {
-                                                
-                        if (parsed.study_schedule && Array.isArray(parsed.study_schedule)) {
-                            let calculatedRows = Math.min(100, Math.max(7, parsed.study_schedule.length));
-                            cacheTasks = {}; cacheNotes = {}; cacheCustomTexts = {};
-                                                        
-                            for (let i = 0; i < 10; i++) {
-                                const defaultDef = DEFAULT_YKS_LESSONS[i] || { name: `Ders ${i+1}`, time: "00:00 - 00:00" };
-                                cacheCustomTexts[`th-subj-${i}`] = defaultDef.name;
-                                cacheCustomTexts[`th-time-${i}`] = defaultDef.time;
-                            }
-                            
-                            parsed.study_schedule.forEach((dayData, r) => {
-                                if (r >= calculatedRows) return;
-                                if (Array.isArray(dayData.routine)) cacheCustomTexts[`task-text-${r}-0`] = dayData.routine.join(" + ");
-                                else cacheCustomTexts[`task-text-${r}-0`] = dayData.routine || "-";
-                                
-                                cacheCustomTexts[`task-text-${r}-1`] = dayData.math || "-";
-                                cacheCustomTexts[`task-text-${r}-2`] = dayData.chemistry || "-";
-                                cacheCustomTexts[`task-text-${r}-3`] = dayData.biology || "-";
-                                
-                                for(let col=4; col<10; col++) {
-                                    if(dayData[`column_${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = dayData[`column_${col}`];
-                                    else if(!cacheCustomTexts[`task-text-${r}-${col}`]) cacheCustomTexts[`task-text-${r}-${col}`] = "-";
-                                }
-                            });
-                            currentStartDate = (parsed.study_schedule[0] && parsed.study_schedule[0].date && !isNaN(Date.parse(parsed.study_schedule[0].date))) ? parsed.study_schedule[0].date : DEFAULT_START_DATE;
-                            currentTarget = 8; currentCols = 5; currentRowCount = calculatedRows;
-                                                    
-                        } else {
-                            const isObject = (val) => val !== null && typeof val === 'object' && !Array.isArray(val);
-                            cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
-                            cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
-                            cacheCustomTexts = isObject(parsed.customTexts) ? parsed.customTexts : {};
-                            
-                            const s = parsed.settings || {};
-                            currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5)); 
-                            currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
-                            currentStartDate = (s.startDate && !isNaN(Date.parse(s.startDate))) ? s.startDate : DEFAULT_START_DATE;
-                            currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
-                        }
+                        isImporting = true;
+                        await saveBackupSnapshot();
+
+                        const isObject = (val) => val !== null && typeof val === 'object' && !Array.isArray(val);
+                        cacheTasks = isObject(parsed.tasks) ? parsed.tasks : {}; 
+                        cacheNotes = isObject(parsed.notes) ? parsed.notes : {}; 
+                        cacheCustomTexts = isObject(parsed.customTexts) ? parsed.customTexts : {};
+                        
+                        const s = parsed.settings || {};
+                        currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5)); 
+                        currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
+                        currentStartDate = (s.startDate && !isNaN(Date.parse(s.startDate))) ? s.startDate : DEFAULT_START_DATE;
+                        currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
+                        
                         const settingsObj = { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount };
                         
                         if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
@@ -1143,18 +1146,81 @@
                             syncFirebaseSet(`${SHARED_PATH}settings/`, settingsObj)
                         ]);
                         renderTableStructure(); applyDataToUI();
+                        isImporting = false;
                         alert("🚀 Program verileri başarıyla çözümlendi ve tabloya aktarıldı!");
                     }
                 } catch (err) {
+                    isImporting = false;
                     alert("❌ Hata Ayrıştırma Raporu:\n" + err.message);
                 }
             };
             reader.readAsText(file);
             e.target.value = "";
         });
+
+        document.getElementById("restore-prev-btn").addEventListener("click", async () => {
+            try {
+                let backup = await getFromIDB("undoBackup");
+                if (!backup) {
+                    const localBackup = localStorage.getItem("yks_kamp_pro_undo_backup");
+                    if (localBackup) backup = JSON.parse(localBackup);
+                }
+                if (!backup) return alert("❌ Geri alınacak eski bir program bulunamadı!");
+
+                if (confirm("Mevcut programınız silinecek ve bir önceki programınız geri yüklenecektir. Onaylıyor musunuz?")) {
+                    isImporting = true;
+                    const currentSnapshot = {
+                        tasks: JSON.parse(JSON.stringify(cacheTasks)),
+                        notes: JSON.parse(JSON.stringify(cacheNotes)),
+                        customTexts: JSON.parse(JSON.stringify(cacheCustomTexts)),
+                        settings: { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount }
+                    };
+
+                    cacheTasks = backup.tasks || {};
+                    cacheNotes = backup.notes || {};
+                    cacheCustomTexts = backup.customTexts || {};
+                    
+                    const s = backup.settings || {};
+                    currentCols = Math.min(10, Math.max(1, parseInt(s.colCount) || 5));
+                    currentRowCount = Math.min(100, Math.max(7, parseInt(s.rowCount) || 17));
+                    currentStartDate = s.startDate || DEFAULT_START_DATE;
+                    currentTarget = Math.min(24, Math.max(1, parseFloat(s.targetHours) || 8));
+
+                    const settingsObj = { startDate: currentStartDate, targetHours: currentTarget, colCount: currentCols, rowCount: currentRowCount };
+
+                    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+                    if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+
+                    await Promise.all([
+                        saveToIDB('tasks', cacheTasks), saveToIDB('notes', cacheNotes),
+                        saveToIDB('customTexts', cacheCustomTexts), saveToIDB('settings', settingsObj)
+                    ]);
+                    await Promise.all([
+                        syncFirebaseSet(`${SHARED_PATH}tasks/`, Object.keys(cacheTasks).length > 0 ? cacheTasks : null),
+                        syncFirebaseSet(`${SHARED_PATH}notes/`, Object.keys(cacheNotes).length > 0 ? cacheNotes : null),
+                        syncFirebaseSet(`${SHARED_PATH}customTexts/`, Object.keys(cacheCustomTexts).length > 0 ? cacheCustomTexts : null),
+                        syncFirebaseSet(`${SHARED_PATH}settings/`, settingsObj)
+                    ]);
+
+                    localStorage.setItem("yks_kamp_pro_undo_backup", JSON.stringify(currentSnapshot));
+                    await saveToIDB("undoBackup", currentSnapshot);
+
+                    renderTableStructure();
+                    applyDataToUI();
+                    isImporting = false;
+                    alert("↩️ Önceki program başarıyla geri getirildi!");
+                }
+            } catch(e) {
+                isImporting = false;
+                alert("❌ Geri getirme sırasında bir hata oluştu: " + e.message);
+            }
+        });
         
         document.getElementById("reset-btn").addEventListener("click", async () => {
-            if (confirm("⚠️ UYARI: Tüm tablo içeriğini, girilen ders isimlerini, süreleri ve günlük notları kalıcı olarak temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz!")) {
+            if (confirm("⚠️ UYARI: Tüm tablo içeriğini kalıcı olarak temizlemek istediğinize emin misiniz? Geri alma butonundan kurtarabilirsiniz.")) {
+                await saveBackupSnapshot();
+                isImporting = true;
+
                 cacheTasks = {}; cacheNotes = {}; cacheCustomTexts = {};
                 const defaultSettings = { startDate: DEFAULT_START_DATE, targetHours: 8, colCount: 5, rowCount: 17 };
                                 
@@ -1173,13 +1239,15 @@
                     syncFirebaseSet(`${SHARED_PATH}customTexts/`, null), syncFirebaseSet(`${SHARED_PATH}settings/`, defaultSettings)
                 ]);
                 renderTableStructure(); applyDataToUI();
-                alert("🗑️ Tablo başarıyla ilk ayarlarına sıfırlandı!");
+                isImporting = false;
+                alert("🗑️ Tablo başarıyla sıfırlandı!");
             }
         });
 
-        async function triggerNotification(title, body) {
-            if (!("Notification" in window)) { alert(`🔔 ${title}\n\n${body}`); return; }
+        async function triggerNotification(title, body, isUserGesture = false) {
+            if (!("Notification" in window)) { if (isUserGesture) alert(`🔔 ${title}\n\n${body}`); return; }
             const options = { body: body, icon: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", badge: "https://cdn-icons-png.flaticon.com/512/2936/2936758.png", requireInteraction: true };
+            
             if (Notification.permission === "granted") {
                 if ('serviceWorker' in navigator) {
                     try {
@@ -1187,11 +1255,13 @@
                         if (reg && 'showNotification' in reg) { await reg.showNotification(title, options); return; }
                     } catch (e) { console.warn("SW bildirim hatası, standarda dönülüyor:", e); }
                 }
-                try { new Notification(title, options); } catch (err) { alert(`🔔 ${title}\n\n${body}`); }
-            } else if (Notification.permission !== "denied") {
+                try { new Notification(title, options); } catch (err) { if (isUserGesture) alert(`🔔 ${title}\n\n${body}`); }
+            } else if (Notification.permission !== "denied" && isUserGesture) {
                 const permission = await Notification.requestPermission();
-                if (permission === "granted") { triggerNotification(title, body); } else { alert(`🔔 ${title}\n\n${body}`); }
-            } else { alert(`🔔 ${title}\n\n${body}`); }
+                if (permission === "granted") { triggerNotification(title, body, isUserGesture); } else { alert(`🔔 ${title}\n\n${body}`); }
+            } else if (isUserGesture) {
+                alert(`🔔 ${title}\n\n${body}`);
+            }
         }
 
         async function sendTodayNotification() {
@@ -1199,11 +1269,11 @@
             const motivasyonSozleri = [
                 "Bugün, gelecekteki senin sana teşekkür edeceği bir dayanak noktası olsun! 🚀",
                 "Başarı, her gün tekrarlanan küçük çabaların toplamıdır. 💪",
-                "Hayallerine ulaşmak için bugün harika bir fırsat! Devam et! 💻",
+                "Hayallerine ulaşmak için bugün harika bir fırsat! Devam et!",
                 "Zorluklar, sıradan insanları sıra dışı bir kadere hazırlar. 🌟"
             ];
             const rastgeleSoz = motivasyonSozleri[Math.floor(Math.random() * motivasyonSozleri.length)];
-            if (!todayRow) return await triggerNotification("📌 YKS Kamp Takip", `Bugün için aktif bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`);
+            if (!todayRow) return await triggerNotification("📌 YKS Kamp Takip", `Bugün için aktif bir görev bulunamadı.\n\n💡 ${rastgeleSoz}`, true);
             let tasksList = [];
             const tasks = todayRow.querySelectorAll('.task-text');
             const headers = document.querySelectorAll('thead th .editable-text[id^="th-subj"]');
@@ -1216,7 +1286,7 @@
                     tasksList.push(`${isDone ? '✅' : '⏳'} ${subjText}: ${taskText}`);
                 }
             });
-            await triggerNotification("Bugün Yapılacaklar", `${tasksList.join('\n') || "Görev girilmemiş."}\n\n💡 ${rastgeleSoz}`);
+            await triggerNotification("Bugün Yapılacaklar", `${tasksList.join('\n') || "Görev girilmemiş."}\n\n💡 ${rastgeleSoz}`, true);
         }
 
         function getFirstLessonTime() {
@@ -1240,7 +1310,7 @@
                 localStorage.setItem("lastAutoNotifiedDate", todayStr);
                 const firstSubjEl = document.getElementById("th-subj-0-text");
                 const firstSubjName = firstSubjEl ? firstSubjEl.textContent.trim() : "İlk Ders";
-                await triggerNotification("📚 Ders Başlıyor!", `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak veya başladı! 🚀`);
+                await triggerNotification("📚 Ders Başlıyor!", `İlk dersiniz (${firstSubjName}) 30 dakika içinde başlayacak veya başladı! 🚀`, false);
             }
         }
         setInterval(checkAutomatedNotifications, 15000);
@@ -1359,7 +1429,7 @@
             const targetDay = parseInt(daySelect.value);
             const targetLesson = parseInt(lessonSelect.value);
             if (isNaN(targetDay) || targetDay >= currentRowCount || isNaN(targetLesson) || targetLesson >= currentCols) {
-                alert("❌ Hata: Seçili gün veya ders mevcut tablo sınırlarının dışında! Lütfen seçimi güncelleyin.");
+                alert("❌ Hata: Seçili gün veya ders mevcut tablo sınırlarının dışında!");
                 return;
             }
 
