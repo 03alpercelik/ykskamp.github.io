@@ -635,10 +635,10 @@
                     const taskData = cacheTasks[box.id];
                     const badgeContainer = box.parentNode.querySelector(".cell-timer-container");
                     if (badgeContainer) {
-                        badgeContainer.innerHTML = (taskData && taskData.hours > 0) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
+                        badgeContainer.innerHTML = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
                     }
                     if (box.checked) {
-                        const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
+                        const hrs = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? taskData.hours : currentHeaderHrs;
                         rowTotalHours += hrs; completedHours += hrs;
                         subjStats[cIndex]++; subjTotalHoursArr[cIndex] += hrs;
                     } else { remainingHours += currentHeaderHrs; }
@@ -903,14 +903,14 @@
                 const existingData = cacheTasks[taskId];
                                 
                 if (isChecked) {
-                    const colIndex = parseInt(taskId.split('-')[2]);
-                    const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                    const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
-                    const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
-                    taskData = { done: true, hours: safeHours, updatedAt: Date.now() };
+                    if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
+                        taskData = { done: true, hours: existingData.hours, isDefault: false, updatedAt: Date.now() };
+                    } else {
+                        taskData = { done: true, isDefault: true, updatedAt: Date.now() };
+                    }
                 } else {
-                    if (existingData && existingData.hours > 0) {
-                        taskData = { done: false, hours: existingData.hours, updatedAt: Date.now() };
+                    if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
+                        taskData = { done: false, hours: existingData.hours, isDefault: false, updatedAt: Date.now() };
                     }
                 }
                                 
@@ -937,17 +937,18 @@
                 let updates = {}; const now = Date.now();
                                 
                 rowTasks.forEach(box => { 
-                    const colIndex = parseInt(box.id.split('-')[2]);
                     const existingData = cacheTasks[box.id];
                     if (newState) {
-                        const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${colIndex}"]`);
-                        const calculatedHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
-                        const safeHours = (existingData && existingData.hours !== undefined && existingData.hours > 0) ? existingData.hours : calculatedHrs;
-                        const data = { done: true, hours: safeHours, updatedAt: now };
-                        updates[box.id] = data; cacheTasks[box.id] = data;
+                        if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
+                            const data = { done: true, hours: existingData.hours, isDefault: false, updatedAt: now };
+                            updates[box.id] = data; cacheTasks[box.id] = data;
+                        } else {
+                            const data = { done: true, isDefault: true, updatedAt: now };
+                            updates[box.id] = data; cacheTasks[box.id] = data;
+                        }
                     } else {
-                        if (existingData && existingData.hours > 0) {
-                            const data = { done: false, hours: existingData.hours, updatedAt: now };
+                        if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
+                            const data = { done: false, hours: existingData.hours, isDefault: false, updatedAt: now };
                             updates[box.id] = data; cacheTasks[box.id] = data;
                         } else {
                             updates[box.id] = null; delete cacheTasks[box.id];
@@ -1467,13 +1468,11 @@
             const lessonName = document.getElementById(`th-subj-${targetLesson}-text`)?.textContent.trim() || `Ders`;
             if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${targetDay + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
                 const taskId = `task-${targetDay}-${targetLesson}`;
-                const headerTimeSpan = document.querySelector(`th span[data-edit-id="th-time-${targetLesson}"]`);
-                const currentHeaderHrs = getHoursFromText(headerTimeSpan ? headerTimeSpan.textContent : "");
                                 
-                const currentData = cacheTasks[taskId] || { done: false, hours: 0 };
-                let baselineHours = currentData.hours !== undefined ? currentData.hours : (currentData.done ? currentHeaderHrs : 0);
+                const currentData = cacheTasks[taskId] || { done: false };
+                let baselineHours = (currentData.hours !== undefined && !currentData.isDefault) ? currentData.hours : 0;
                                 
-                const taskData = { done: true, hours: baselineHours + addedHours, updatedAt: Date.now() };
+                const taskData = { done: true, hours: baselineHours + addedHours, isDefault: false, updatedAt: Date.now() };
                 cacheTasks[taskId] = taskData; saveToIDB('tasks', cacheTasks); applyDataToUI(); 
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
 
