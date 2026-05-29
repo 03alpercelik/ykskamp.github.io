@@ -300,6 +300,7 @@
     let activeSavingCount = 0; 
     let syncHasError = false;
     let isImporting = false; 
+    let isProcessingSyncQueue = false;
 
     function escapeHTML(str) {
         if (!str) return "";
@@ -373,6 +374,21 @@
         { name: "AYT Biyoloji", time: "18:15 - 19:15" }
     ];
     let database, tasksRef, notesRef, customTextRef, settingsRef;
+    
+    // VERİ ARINDIRMA FONKSİYONU (Firebase undefined çökmesini önler)
+    function sanitizeData(obj) {
+        if (obj === undefined || obj === null) return null;
+        if (typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(sanitizeData);
+        const cleaned = {};
+        for (const key in obj) {
+            if (obj[key] !== undefined && obj[key] !== null) {
+                cleaned[key] = sanitizeData(obj[key]);
+            }
+        }
+        return Object.keys(cleaned).length > 0 ? cleaned : null;
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
         const tbody = document.getElementById("table-body");
         const headerRow = document.getElementById("header-row");
@@ -408,14 +424,17 @@
             refreshStatusIndicator();
             try {
                 if (isOnline) {
-                    await set(ref(database, path), data);
+                    const cleanData = sanitizeData(data);
+                    await set(ref(database, path), cleanData);
                     syncHasError = false;
                 } else {
                     await addToSyncQueue('set', path, data);
                 }
             } catch (e) {
+                console.error("syncFirebaseSet hatası:", e);
                 syncHasError = true;
                 await addToSyncQueue('set', path, data);
+                setTimeout(() => processSyncQueue(), 5000);
             } finally {
                 activeSavingCount = Math.max(0, activeSavingCount - 1);
                 refreshStatusIndicator();
@@ -427,14 +446,19 @@
             refreshStatusIndicator();
             try {
                 if (isOnline) {
-                    await update(ref(database, path), data);
-                    syncHasError = false;
+                    const cleanData = sanitizeData(data);
+                    if (cleanData) {
+                        await update(ref(database, path), cleanData);
+                        syncHasError = false;
+                    }
                 } else {
                     await addToSyncQueue('update', path, data);
                 }
             } catch (e) {
+                console.error("syncFirebaseUpdate hatası:", e);
                 syncHasError = true;
                 await addToSyncQueue('update', path, data);
+                setTimeout(() => processSyncQueue(), 5000);
             } finally {
                 activeSavingCount = Math.max(0, activeSavingCount - 1);
                 refreshStatusIndicator();
@@ -442,7 +466,10 @@
         }
 
         async function processSyncQueue() {
-            if (!isOnline) return;
+            if (!isOnline || isProcessingSyncQueue) return;
+            isProcessingSyncQueue = true;
+            syncHasError = false; 
+            refreshStatusIndicator();
             try {
                 const db = await dbPromise;
                 const tx = db.transaction("syncQueue", "readonly");
@@ -468,8 +495,12 @@
                     activeSavingCount++;
                     refreshStatusIndicator();
                     try {
-                        if (item.type === 'set') await set(ref(database, item.path), item.data);
-                        else if (item.type === 'update') await update(ref(database, item.path), item.data);
+                        const writeData = sanitizeData(item.data);
+                        if (item.type === 'set') {
+                            await set(ref(database, item.path), writeData);
+                        } else if (item.type === 'update' && writeData) {
+                            await update(ref(database, item.path), writeData);
+                        }
                         
                         const delTx = db.transaction("syncQueue", "readwrite");
                         await new Promise((res, rej) => {
@@ -478,7 +509,7 @@
                             req.onerror = () => rej(req.error);
                         });
                     } catch (err) {
-                        console.error("Senkronizasyon işlemi yarıda kaldı:", err);
+                        console.error("Senkronizasyon kuyruğu eritme adım hatası:", err);
                         syncHasError = true;
                         break; 
                     } finally {
@@ -486,10 +517,20 @@
                         refreshStatusIndicator();
                     }
                 }
+                
+                const remainingCount = await getQueueCount();
+                if (remainingCount > 0) {
+                    syncHasError = true;
+                    setTimeout(() => processSyncQueue(), 5000);
+                } else {
+                    syncHasError = false;
+                }
             } catch(e) { 
-                console.error("Kuyruk döngü hatası", e); 
+                console.error("Kuyruk genel döngü hatası", e); 
                 syncHasError = true;
+                setTimeout(() => processSyncQueue(), 5000);
             } finally {
+                isProcessingSyncQueue = false;
                 refreshStatusIndicator();
             }
         }
@@ -635,10 +676,10 @@
                     const taskData = cacheTasks[box.id];
                     const badgeContainer = box.parentNode.querySelector(".cell-timer-container");
                     if (badgeContainer) {
-                        badgeContainer.innerHTML = (taskData && taskData.hours !== undefined) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
+                        badgeContainer.innerHTML = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
                     }
                     if (box.checked) {
-                        const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
+                        const hrs = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? taskData.hours : currentHeaderHrs;
                         rowTotalHours += hrs; completedHours += hrs;
                         subjStats[cIndex]++; subjTotalHoursArr[cIndex] += hrs;
                     } else { remainingHours += currentHeaderHrs; }
@@ -951,11 +992,10 @@
                                 
                 const taskId = e.target.id;
                 let taskData = null;
-                
+                                
                 if (isChecked) {
-                    taskData = { done: true, hours: undefined, isDefault: true, updatedAt: Date.now() };
+                    taskData = { done: true, isDefault: true, updatedAt: Date.now() };
                 } else {
-                    // MUTLAK TEMİZLİK: Tik kaldırıldığı an buluttaki ve lokaldeki eski/hatalı tüm süreler uçurulur.
                     taskData = null; 
                 }
                                 
@@ -983,7 +1023,7 @@
                                 
                 rowTasks.forEach(box => { 
                     if (newState) {
-                        const data = { done: true, hours: undefined, isDefault: true, updatedAt: now };
+                        const data = { done: true, isDefault: true, updatedAt: now };
                         updates[box.id] = data; cacheTasks[box.id] = data;
                     } else {
                         updates[box.id] = null; delete cacheTasks[box.id];
@@ -1504,8 +1544,6 @@
                 const taskId = `task-${targetDay}-${targetLesson}`;
                 const currentData = cacheTasks[taskId] || { done: false };
                 
-                // TABAN SÜRE SIFIRLAMA: Eğer eski veri 'isDefault' ise veya saat girilmemişse baseline 0'dır.
-                // Eğer zaten kronometreyle kaydedilmiş saf bir süre varsa, onun üzerine ekleme yapar.
                 let existingHours = (currentData.hours !== undefined && currentData.isDefault === false) ? currentData.hours : 0;
                                 
                 const taskData = { done: true, hours: existingHours + addedHours, isDefault: false, updatedAt: Date.now() };
