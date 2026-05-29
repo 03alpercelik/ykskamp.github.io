@@ -635,10 +635,10 @@
                     const taskData = cacheTasks[box.id];
                     const badgeContainer = box.parentNode.querySelector(".cell-timer-container");
                     if (badgeContainer) {
-                        badgeContainer.innerHTML = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
+                        badgeContainer.innerHTML = (taskData && taskData.hours !== undefined) ? `<span class="cell-timer-badge ml-1.5 bg-blue-500 text-white text-[9px] font-bold px-1 rounded tabular-nums">${taskData.hours.toFixed(1)}s</span>` : "";
                     }
                     if (box.checked) {
-                        const hrs = (taskData && taskData.hours !== undefined && !taskData.isDefault) ? taskData.hours : currentHeaderHrs;
+                        const hrs = (taskData && taskData.hours !== undefined) ? taskData.hours : currentHeaderHrs;
                         rowTotalHours += hrs; completedHours += hrs;
                         subjStats[cIndex]++; subjTotalHoursArr[cIndex] += hrs;
                     } else { remainingHours += currentHeaderHrs; }
@@ -717,46 +717,97 @@
                 chartInstance.data.labels = subjNames;
                 chartInstance.data.datasets[0].data = subjTotalHoursArr;
                 chartInstance.data.datasets[0].backgroundColor = colors.slice(0, currentCols);
-                if (chartInstance.options.plugins && chartInstance.options.plugins.legend && chartInstance.options.plugins.legend.labels) {
-                    chartInstance.options.plugins.legend.labels.color = textColor;
+                if (chartInstance.options.plugins && chartInstance.options.plugins.legend) {
+                    chartInstance.options.plugins.legend.position = 'bottom';
+                    if (chartInstance.options.plugins.legend.labels) {
+                        chartInstance.options.plugins.legend.labels.color = textColor;
+                    }
                 }
                 chartInstance.update('none');
             } else {
                 chartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
                     type: 'doughnut',
-                    data: { labels: subjNames, datasets: [{ data: subjTotalHoursArr, backgroundColor: colors.slice(0, currentCols), borderWidth: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor } } } }
+                    data: { labels: subjNames, datasets: [{ data: subjTotalHoursArr, backgroundColor: colors.slice(0, currentCols), borderWidth: 2, borderRadius: 4, spacing: 2 }] },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        cutout: '75%',
+                        plugins: { 
+                            legend: { 
+                                position: 'bottom', 
+                                labels: { 
+                                    color: textColor,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    font: { size: 11, weight: '600' },
+                                    padding: 12
+                                } 
+                            } 
+                        } 
+                    }
                 });
             }
 
             const maxDailyHour = dailyData.length > 0 ? Math.max(...dailyData) : 0;
             const computedYMax = Math.max(12, currentTarget + 2, Math.ceil(maxDailyHour) + 1);
 
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            let gradientFill = ctxLine.createLinearGradient(0, 0, 0, 250);
+            if (isDark) {
+                gradientFill.addColorStop(0, 'rgba(162, 155, 254, 0.4)');
+                gradientFill.addColorStop(1, 'rgba(162, 155, 254, 0.0)');
+            } else {
+                gradientFill.addColorStop(0, 'rgba(108, 92, 231, 0.25)');
+                gradientFill.addColorStop(1, 'rgba(108, 92, 231, 0.0)');
+            }
+
             if (lineChartInstance) {
                 lineChartInstance.data.labels = dailyLabels;
                 lineChartInstance.data.datasets[0].data = dailyData;
+                lineChartInstance.data.datasets[0].backgroundColor = gradientFill;
                 lineChartInstance.options.scales.y.max = computedYMax;
-                lineChartInstance.options.scales.x.grid.color = gridColor;
+                if (!lineChartInstance.options.scales.x) lineChartInstance.options.scales.x = {};
+                lineChartInstance.options.scales.x.type = 'category';
+                if (!lineChartInstance.options.scales.x.grid) lineChartInstance.options.scales.x.grid = {};
+                lineChartInstance.options.scales.x.grid.color = 'transparent';
+                if (!lineChartInstance.options.scales.x.ticks) lineChartInstance.options.scales.x.ticks = {};
                 lineChartInstance.options.scales.x.ticks.color = textColor;
                 lineChartInstance.options.scales.x.ticks.autoSkip = false;
+                if (!lineChartInstance.options.scales.y) lineChartInstance.options.scales.y = {};
+                if (!lineChartInstance.options.scales.y.grid) lineChartInstance.options.scales.y.grid = {};
                 lineChartInstance.options.scales.y.grid.color = gridColor;
+                if (!lineChartInstance.options.scales.y.ticks) lineChartInstance.options.scales.y.ticks = {};
                 lineChartInstance.options.scales.y.ticks.color = textColor;
                 lineChartInstance.update('none');
             } else {
-                lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
+                lineChartInstance = new Chart(ctxLine, {
                     type: 'line',
                     data: {
                         labels: dailyLabels,
                         datasets: [{
                             label: 'Günlük Çalışma (Saat)', data: dailyData,
-                            borderColor: '#a29bfe', backgroundColor: isDark ? 'rgba(162, 155, 254, 0.15)' : 'rgba(108, 92, 231, 0.1)',
-                            borderWidth: 3, tension: 0.3, fill: true, pointBackgroundColor: '#00b894', pointRadius: 4
+                            borderColor: '#6c5ce7', backgroundColor: gradientFill,
+                            borderWidth: 3, tension: 0.4, fill: true, 
+                            pointBackgroundColor: '#00b894', pointBorderColor: '#fff', pointBorderWidth: 2,
+                            pointRadius: 5, pointHoverRadius: 7
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
                         scales: { 
-                            x: { grid: { color: gridColor }, ticks: { color: textColor, autoSkip: false } }, 
-                            y: { min: 0, max: computedYMax, grid: { color: gridColor }, ticks: { color: textColor } } 
+                            x: { 
+                                type: 'category', 
+                                grid: { display: false }, 
+                                ticks: { color: textColor, autoSkip: false, font: { size: 10, weight: '600' } } 
+                            }, 
+                            y: { 
+                                min: 0, 
+                                max: computedYMax, 
+                                grid: { color: gridColor, borderDash: [5, 5] }, 
+                                ticks: { color: textColor, font: { size: 10 } } 
+                            } 
                         } 
                     }
                 });
@@ -900,18 +951,12 @@
                                 
                 const taskId = e.target.id;
                 let taskData = null;
-                const existingData = cacheTasks[taskId];
-                                
+                
                 if (isChecked) {
-                    if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
-                        taskData = { done: true, hours: existingData.hours, isDefault: false, updatedAt: Date.now() };
-                    } else {
-                        taskData = { done: true, isDefault: true, updatedAt: Date.now() };
-                    }
+                    taskData = { done: true, hours: undefined, isDefault: true, updatedAt: Date.now() };
                 } else {
-                    if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
-                        taskData = { done: false, hours: existingData.hours, isDefault: false, updatedAt: Date.now() };
-                    }
+                    // MUTLAK TEMİZLİK: Tik kaldırıldığı an buluttaki ve lokaldeki eski/hatalı tüm süreler uçurulur.
+                    taskData = null; 
                 }
                                 
                 if(taskData) cacheTasks[taskId] = taskData; else delete cacheTasks[taskId];
@@ -937,22 +982,11 @@
                 let updates = {}; const now = Date.now();
                                 
                 rowTasks.forEach(box => { 
-                    const existingData = cacheTasks[box.id];
                     if (newState) {
-                        if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
-                            const data = { done: true, hours: existingData.hours, isDefault: false, updatedAt: now };
-                            updates[box.id] = data; cacheTasks[box.id] = data;
-                        } else {
-                            const data = { done: true, isDefault: true, updatedAt: now };
-                            updates[box.id] = data; cacheTasks[box.id] = data;
-                        }
+                        const data = { done: true, hours: undefined, isDefault: true, updatedAt: now };
+                        updates[box.id] = data; cacheTasks[box.id] = data;
                     } else {
-                        if (existingData && existingData.hours !== undefined && !existingData.isDefault) {
-                            const data = { done: false, hours: existingData.hours, isDefault: false, updatedAt: now };
-                            updates[box.id] = data; cacheTasks[box.id] = data;
-                        } else {
-                            updates[box.id] = null; delete cacheTasks[box.id];
-                        }
+                        updates[box.id] = null; delete cacheTasks[box.id];
                     }
                     box.checked = newState; 
                     box.nextElementSibling?.classList.toggle("completed-text", newState);
@@ -1468,11 +1502,13 @@
             const lessonName = document.getElementById(`th-subj-${targetLesson}-text`)?.textContent.trim() || `Ders`;
             if (confirm(`${(timerSeconds / 60).toFixed(1)} dakikalık süreyi\n👉 ${targetDay + 1}. Gün — [ ${lessonName} ] dersine eklemek istiyor musun?`)) {
                 const taskId = `task-${targetDay}-${targetLesson}`;
-                                
                 const currentData = cacheTasks[taskId] || { done: false };
-                let baselineHours = (currentData.hours !== undefined && !currentData.isDefault) ? currentData.hours : 0;
+                
+                // TABAN SÜRE SIFIRLAMA: Eğer eski veri 'isDefault' ise veya saat girilmemişse baseline 0'dır.
+                // Eğer zaten kronometreyle kaydedilmiş saf bir süre varsa, onun üzerine ekleme yapar.
+                let existingHours = (currentData.hours !== undefined && currentData.isDefault === false) ? currentData.hours : 0;
                                 
-                const taskData = { done: true, hours: baselineHours + addedHours, isDefault: false, updatedAt: Date.now() };
+                const taskData = { done: true, hours: existingHours + addedHours, isDefault: false, updatedAt: Date.now() };
                 cacheTasks[taskId] = taskData; saveToIDB('tasks', cacheTasks); applyDataToUI(); 
                 syncFirebaseSet(`${SHARED_PATH}tasks/${taskId}`, taskData);
 
